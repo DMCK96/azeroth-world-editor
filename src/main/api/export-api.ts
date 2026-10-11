@@ -22,12 +22,28 @@ import { TITLE_FIELD, textOf } from './quests-api';
 const CREATURE_TABLE = 'creature_template';
 const QUEST_GIVER_BIT = 2;
 
+/**
+ * The number for the next export of a kind on `date`: one past the highest `<date>_<nn><marker>…` already in the
+ * folder (a patch's revert file counts too) and one past the last this session wrote. Counting the files instead
+ * sent a new export to an old name as soon as an earlier one was moved out of the folder, overwriting what was left.
+ */
+export function nextExportSequence(existing: readonly string[], date: string, marker: string, writtenBefore = -1): number {
+  const own = new RegExp(`^${date}_(\\d+)${marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+  const onDisk = existing.reduce((highest, name) => {
+    const found = own.exec(name);
+    return found ? Math.max(highest, Number(found[1])) : highest;
+  }, -1);
+  return Math.max(onDisk, writtenBefore) + 1;
+}
+
 /** Exporting: the quest and project patches, previewing them, test commands, and applying to the dev database */
 export function createExportApi(s: Services): ExportApi {
   const { deps, connected, usable, quests, questOf, projectEntities, questEntities, exportSchema } = s.ctx;
   const { guardWrite, guardProject } = s.checks;
   const { projectPatch, patchFor } = s.patches;
   const { forgetPools } = s.groups;
+  /** The last number written per day and kind this session, so a patch moved out of the folder is not numbered again */
+  const lastWritten = new Map<string, number>();
 
   return {
     previewChanges: (questId) =>
@@ -105,7 +121,10 @@ export function createExportApi(s: Services): ExportApi {
         const outputDir = deps.exportDirOverride || live.exportDir || deps.defaultExportDir || deps.session.meta().outputDir;
         await deps.fs.ensureDir(outputDir);
         const existing = await deps.fs.listDir(outputDir);
-        const sequence = String(existing.filter((name) => name.startsWith(`${date}_`) && name.endsWith('_project.sql')).length).padStart(2, '0');
+        const kind = `${date}|project`;
+        const number = nextExportSequence(existing, date, '_project', lastWritten.get(kind));
+        lastWritten.set(kind, number);
+        const sequence = String(number).padStart(2, '0');
         const applyPath = join(outputDir, `${date}_${sequence}_project.sql`);
         const revertPath = join(outputDir, `${date}_${sequence}_project_revert.sql`);
         await deps.fs.writeFile(applyPath, sql);
@@ -159,7 +178,9 @@ export function createExportApi(s: Services): ExportApi {
         // Several exports of one quest on one day sit side by side, numbered in the order written.
         const marker = `_quest_${questId}_`;
         const existing = await deps.fs.listDir(outputDir);
-        const sequence = existing.filter((name) => name.startsWith(`${date}_`) && name.includes(marker)).length;
+        const kind = `${date}|${marker}`;
+        const sequence = nextExportSequence(existing, date, marker, lastWritten.get(kind));
+        lastWritten.set(kind, sequence);
         const path = join(
           outputDir,
           patchFileName({ date, sequence, questId, title: textOf(quest.aggregate, TITLE_FIELD) }),

@@ -8,6 +8,7 @@ import { EMPTY_ENTITIES, newNpc, newSpawn } from '../../src/core/entities/model'
 import { forkDb } from '../helpers/fixtures';
 import { readOriginalRows } from '../../src/core/entities/existing';
 import { npcFromRows } from '../../src/core/entities/from-rows';
+import { nextExportSequence } from '../../src/main/api/export-api';
 
 const box = { encrypt: (s: string) => Uint8Array.from(Buffer.from(s)), decrypt: (b: Uint8Array) => Buffer.from(b).toString() };
 async function setup() {
@@ -120,5 +121,36 @@ describe('spawn events in the project patch', () => {
     await api.putProjectEntities({ ...EMPTY_ENTITIES, npcs: [hela] });
     const out: any = await api.exportProject();
     expect(out.value.sql).not.toContain('game_event_creature');
+  });
+});
+
+describe('numbering an export', () => {
+  const day = '2026_10_04';
+
+  it('starts at 00 and takes one past the highest number in the folder', () => {
+    expect(nextExportSequence([], day, '_project')).toBe(0);
+    expect(nextExportSequence([`${day}_00_project.sql`, `${day}_02_project.sql`], day, '_project')).toBe(3);
+  });
+
+  it('counts a revert file left behind, so an apply file moved away is not numbered again', () => {
+    expect(nextExportSequence([`${day}_00_project_revert.sql`], day, '_project')).toBe(1);
+  });
+
+  it('ignores other days and other kinds, and never goes below what the session already wrote', () => {
+    expect(nextExportSequence(['2026_10_03_05_project.sql', `${day}_07_quest_12_a.sql`], day, '_project')).toBe(0);
+    expect(nextExportSequence([], day, '_project', 4)).toBe(5);
+    expect(nextExportSequence([`${day}_01_quest_1_a.sql`], day, '_quest_12_')).toBe(0);
+  });
+
+  it('never writes a second project export to the name of the first, even when the first was moved out', async () => {
+    const { api, written } = await setup();
+    await api.putProjectEntities({ ...EMPTY_ENTITIES, npcs: [hela] });
+    const first: any = await api.exportProject();
+    expect(first.value.applyPath).toMatch(/_00_project\.sql$/);
+    written.delete(first.value.applyPath);
+    const second: any = await api.exportProject();
+    expect(second.value.applyPath).toMatch(/_01_project\.sql$/);
+    expect(second.value.revertPath).toMatch(/_01_project_revert\.sql$/);
+    expect(written.has(first.value.revertPath)).toBe(true);
   });
 });
