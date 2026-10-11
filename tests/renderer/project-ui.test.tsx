@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createAppStore } from '../../src/renderer/state/app-store';
@@ -124,5 +124,37 @@ describe('project UI', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Restore Northshire rework' }));
     await waitFor(() => expect(api.restoreRecovery).toHaveBeenCalledWith('a'));
     await waitFor(() => expect(screen.queryByRole('alertdialog', { name: 'Recover unsaved work' })).toBeNull());
+  });
+});
+
+describe('the update dialog in the app shell', () => {
+  const offer = { current: '0.6.0', latest: '0.7.0', releaseUrl: 'https://github.com/DMCK96/azeroth-world-editor/releases/tag/v0.7.0', notes: [{ version: '0.7.0', title: 'v0.7.0', body: '- Fixed it (abc1234)', url: 'u' }] };
+  const recovery = { id: 'a', name: 'Northshire rework', recoveredFrom: null, writtenAt: '2026-09-23T14:02:00.000Z', questCount: 12, damaged: false };
+
+  async function shellWithBridge(over: Record<string, any>) {
+    const api = makeMockApi({ saveProfile: async () => okv({ id: 1, ...form }), connect: async () => okv({ profileId: 1, schemaHash: 'h', drift, blocking: false }), projectState: async () => okv(state()), updateCheck: async () => okv(offer), ...over });
+    // The page reaches its api as `window.api`, which the dialog uses to ask for the update
+    (window as any).api = api;
+    const store = createAppStore(api, { saveDelayMs: 0 });
+    await store.getState().connect(form);
+    render(<AppShell store={store} />);
+    return api;
+  }
+  afterEach(() => {
+    delete (window as any).api;
+  });
+
+  it('tells the user about a newer release', async () => {
+    await shellWithBridge({});
+    expect(await screen.findByRole('alertdialog', { name: 'Update available' })).toBeInTheDocument();
+  });
+
+  it('shows the recovery dialog first and the update after it is dealt with', async () => {
+    await shellWithBridge({ recoveries: vi.fn().mockResolvedValueOnce(okv([recovery])).mockResolvedValue(okv([])) });
+    const recover = await screen.findByRole('alertdialog', { name: 'Recover unsaved work' });
+    expect(screen.queryByRole('alertdialog', { name: 'Update available' })).toBeNull();
+    await userEvent.click(within(recover).getByRole('button', { name: 'Discard Northshire rework' }));
+    expect(await screen.findByRole('alertdialog', { name: 'Update available' })).toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog', { name: 'Recover unsaved work' })).toBeNull();
   });
 });
