@@ -105,7 +105,7 @@ More: [Docs and screenshots](https://dmck96.github.io/azeroth-world-editor/contr
 1. `npm version X.Y.Z -m "chore(release): %s"` bumps `package.json` and `package-lock.json` together, commits and tags `vX.Y.Z`. Don't edit `version` by hand, or the lockfile falls behind.
 2. `git push origin main vX.Y.Z`.
 3. The Release workflow checks the tag matches, runs the tests, and builds unsigned installers for Windows, macOS and Linux into a draft release.
-4. Edit the draft's notes on the Releases page and publish it.
+4. Edit the draft's notes so they list every change in `git log --oneline vPREVIOUS..vNEW`, one line each with its short commit hash (the generated notes list merged pull requests only and miss direct commits), then publish it. The app's update dialog shows these notes to users.
 
 More: [Releases](https://dmck96.github.io/azeroth-world-editor/contributing/releases/)
 
