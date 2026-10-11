@@ -94,6 +94,46 @@ describe('check', () => {
   });
 });
 
+describe('once the user has dealt with the dialog this launch', () => {
+  it.each([
+    ['remind me later', (c: any) => c.remind()],
+    ['skip', (c: any) => c.skip('0.6.5')],
+    ['update', (c: any) => c.open(base)],
+  ])('%s: later checks (a reopened window, a reload) offer nothing and ask nobody', async (_name, act) => {
+    const fetch = vi.fn(reply([gh('v0.7.0')]));
+    const { controller } = setup(fetch);
+    expect(await controller.check()).not.toBeNull();
+    await act(controller);
+    expect(await controller.check()).toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('an offer that was never answered is offered again (a reload before the user chose)', async () => {
+    const { controller } = setup(reply([gh('v0.7.0')]));
+    expect(await controller.check()).not.toBeNull();
+    expect(await controller.check()).not.toBeNull();
+  });
+});
+
+describe('once the user has dealt with the dialog this launch', () => {
+  it.each([
+    ['remind me later', (c: any) => c.remind()],
+    ['skip', (c: any) => c.skip('0.6.5')],
+    ['update', (c: any) => c.open(base)],
+  ])('%s: later checks (a reopened window, a reload) offer nothing and ask nobody', async (_name, act) => {
+    const fetch = vi.fn(reply([gh('v0.7.0')]));
+    const { controller } = setup(fetch);
+    expect(await controller.check()).not.toBeNull();
+    await act(controller);
+    expect(await controller.check()).toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('an offer that was never answered is offered again (a reload before the user chose)', async () => {
+    const { controller } = setup(reply([gh('v0.7.0')]));
+    expect(await controller.check()).not.toBeNull();
+    expect(await controller.check()).not.toBeNull();
+  });
+});
+
 describe('skip', () => {
   it('stores the version, so the next check is quiet', async () => {
     const { controller } = setup(reply([gh('v0.7.0')]));
@@ -112,6 +152,16 @@ describe('open', () => {
     await controller.open(`${base}/tag/v0.7.0`);
     await controller.open(base);
     expect(opened).toEqual([`${base}/tag/v0.7.0`, base]);
+  });
+  it('opens the address it checked, in its canonical form', async () => {
+    const { controller, opened } = setup(reply([]));
+    await controller.open(` HTTPS://GITHUB.COM/DMCK96/azeroth-world-editor/releases/tag/v1\t`);
+    expect(opened).toEqual([`${base}/tag/v1`]);
+  });
+  it('opens the address it checked, in its canonical form', async () => {
+    const { controller, opened } = setup(reply([]));
+    await controller.open(` HTTPS://GITHUB.COM/DMCK96/azeroth-world-editor/releases/tag/v1\t`);
+    expect(opened).toEqual([`${base}/tag/v1`]);
   });
   it('refuses everything else', async () => {
     const { controller, opened } = setup(reply([]));

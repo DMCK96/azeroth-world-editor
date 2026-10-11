@@ -15,6 +15,11 @@ export function createUpdatesApi(deps: ApiDeps): UpdatesApi {
         controller().skip(version);
         return null;
       }),
+    updateRemind: () =>
+      run(async () => {
+        controller().remind();
+        return null;
+      }),
     updateOpen: (url) =>
       run(async () => {
         await controller().open(url);

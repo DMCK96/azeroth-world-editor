@@ -273,6 +273,7 @@ const REQUEST_SCHEMAS: Record<keyof Api, z.ZodType<unknown[]>> = {
   ]),
   updateCheck: z.tuple([]),
   updateSkip: z.tuple([z.string().max(40)]),
+  updateRemind: z.tuple([]),
   updateOpen: z.tuple([z.string().max(500)]),
   debugAnswer: z.tuple([
     z.number().int(),

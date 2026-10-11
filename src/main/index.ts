@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, protocol, safeStorage, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import { appendFile, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -413,8 +413,9 @@ void app.whenReady().then(() => {
   debugNote = debug.note;
 
   // Unpackaged builds never check, so development does not nag; AWE_UPDATE_CHECK=1 forces it for a manual try.
+  // `net.fetch` goes through Chromium's network stack, so it follows the system proxy that Node's fetch ignores.
   const updates = createUpdateController({
-    fetch: globalThis.fetch,
+    fetch: (url, init) => net.fetch(url, init),
     settings: createUpdateSettings(store),
     version: app.getVersion(),
     enabled: app.isPackaged || process.env['AWE_UPDATE_CHECK'] === '1',

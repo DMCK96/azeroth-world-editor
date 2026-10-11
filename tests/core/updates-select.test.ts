@@ -59,6 +59,14 @@ describe('selectUpdate', () => {
     expect(selectUpdate({ releases, current: '0.6.0', skipped: '0.7.0' })).toBeNull();
     expect(selectUpdate({ releases: [rel('v0.8.0'), ...releases], current: '0.6.0', skipped: '0.7.0' })?.latest).toBe('0.8.0');
   });
+  it('lists a version once when two tags name it', () => {
+    const offer = selectUpdate({ releases: [rel('v0.7.0'), rel('0.7.0')], current: '0.6.0', skipped: null });
+    expect(offer?.notes.map((n) => n.version)).toEqual(['0.7.0']);
+  });
+  it('lists a version once when two tags name it', () => {
+    const offer = selectUpdate({ releases: [rel('v0.7.0'), rel('0.7.0')], current: '0.6.0', skipped: null });
+    expect(offer?.notes.map((n) => n.version)).toEqual(['0.7.0']);
+  });
   it('treats an unparseable skipped value as nothing skipped', () => {
     expect(selectUpdate({ releases: [rel('v0.7.0')], current: '0.6.0', skipped: 'garbage' })?.latest).toBe('0.7.0');
   });

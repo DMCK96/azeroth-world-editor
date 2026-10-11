@@ -158,3 +158,28 @@ describe('the update dialog in the app shell', () => {
     expect(screen.queryByRole('alertdialog', { name: 'Recover unsaved work' })).toBeNull();
   });
 });
+
+describe('the update dialog waits for the recovery check to finish', () => {
+  it('stays hidden while the recoveries are still being read, even once the update is known', async () => {
+    let finish!: (v: unknown) => void;
+    const slow = new Promise((resolve) => { finish = resolve; });
+    const offer = { current: '0.6.0', latest: '0.7.0', releaseUrl: 'https://github.com/DMCK96/azeroth-world-editor/releases/tag/v0.7.0', notes: [] };
+    const api = makeMockApi({
+      saveProfile: async () => okv({ id: 1, ...form }), connect: async () => okv({ profileId: 1, schemaHash: 'h', drift, blocking: false }), projectState: async () => okv(state()),
+      updateCheck: async () => okv(offer), recoveries: vi.fn(() => slow),
+    });
+    (window as any).api = api;
+    try {
+      const store = createAppStore(api, { saveDelayMs: 0 });
+      await store.getState().connect(form);
+      render(<AppShell store={store} />);
+      await waitFor(() => expect(api.updateCheck).toHaveBeenCalled());
+      await new Promise((r) => setTimeout(r, 30));
+      expect(screen.queryByRole('alertdialog', { name: 'Update available' })).toBeNull();
+      finish(okv([]));
+      expect(await screen.findByRole('alertdialog', { name: 'Update available' })).toBeInTheDocument();
+    } finally {
+      delete (window as any).api;
+    }
+  });
+});

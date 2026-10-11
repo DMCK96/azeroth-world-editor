@@ -20,6 +20,8 @@ export interface UpdateController {
   check(): Promise<UpdateOffer | null>;
   /** Stay quiet about this version and every older one */
   skip(version: string): void;
+  /** Remind me later: nothing is offered again until the app is next launched, whatever window asks */
+  remind(): void;
   /** Opens a page of this project's releases in the browser; any other address is refused */
   open(url: string): Promise<void>;
 }
@@ -51,26 +53,29 @@ function readRelease(entry: unknown): Release | null {
   };
 }
 
-/** Whether the address is a page of this project's releases on GitHub, over https and with no userinfo or port */
-function isReleasePage(address: string): boolean {
+/** The address in canonical form when it is a page of this project's releases on GitHub (https, no userinfo or port), else null */
+function releasePage(address: string): string | null {
   let url: URL;
   try {
     url = new URL(address);
   } catch {
-    return false;
+    return null;
   }
-  return (
+  const ok =
     url.protocol === 'https:' &&
     url.host === 'github.com' &&
     url.username === '' &&
     url.password === '' &&
     url.port === '' &&
-    (url.pathname === RELEASES_PATH || url.pathname.startsWith(`${RELEASES_PATH}/`))
-  );
+    (url.pathname === RELEASES_PATH || url.pathname.startsWith(`${RELEASES_PATH}/`));
+  return ok ? url.href : null;
 }
 
 export function createUpdateController(deps: UpdateControllerDeps): UpdateController {
   const { settings, warn } = deps;
+  // Once the user has answered the dialog this launch (any of its three buttons), a reopened window or a
+  // reload must not ask again; the next launch starts clean.
+  let answered = false;
 
   async function fetchReleases(): Promise<Release[] | null> {
     const abort = new AbortController();
@@ -103,7 +108,7 @@ export function createUpdateController(deps: UpdateControllerDeps): UpdateContro
 
   return {
     async check() {
-      if (!deps.enabled) return null;
+      if (!deps.enabled || answered) return null;
       const releases = await fetchReleases();
       if (!releases) return null;
       try {
@@ -116,10 +121,16 @@ export function createUpdateController(deps: UpdateControllerDeps): UpdateContro
     skip(version) {
       if (normalizeVersion(version) === null) throw fail('BAD_REQUEST', 'That is not a version number.');
       settings.setSkipped(version);
+      answered = true;
+    },
+    remind() {
+      answered = true;
     },
     async open(url) {
-      if (!isReleasePage(url)) throw fail('BAD_REQUEST', "That address is not one of this project's releases.");
-      await deps.openExternal(url);
+      const page = releasePage(url);
+      if (!page) throw fail('BAD_REQUEST', "That address is not one of this project's releases.");
+      await deps.openExternal(page);
+      answered = true;
     },
   };
 }

@@ -9,6 +9,8 @@ export interface UpdatesApi {
   updateCheck(): Promise<Result<UpdateOffer | null>>;
   /** Stay quiet until a version newer than this one is published. */
   updateSkip(version: string): Promise<Result<null>>;
+  /** Remind me later: nothing more is offered until the app is next launched (a reopened window does not ask again). */
+  updateRemind(): Promise<Result<null>>;
   /** Open one of this project's GitHub release pages in the browser. */
   updateOpen(url: string): Promise<Result<null>>;
 }

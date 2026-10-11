@@ -82,6 +82,7 @@ export function makeMockApi(overrides: Partial<Record<keyof Api, (...args: any[]
     debugAnswer: vi.fn(async () => okv(null)),
     updateCheck: vi.fn(async () => okv(null)),
     updateSkip: vi.fn(async () => okv(null)),
+    updateRemind: vi.fn(async () => okv(null)),
     updateOpen: vi.fn(async () => okv(null)),
     questsInZone: vi.fn(async (zone: number) => okv({ zone: { id: zone, name: `Zone ${zone}` }, quests: [], total: 0, truncated: false })),
     questSummaries: vi.fn(async () => okv({ quests: [], missing: [] })),

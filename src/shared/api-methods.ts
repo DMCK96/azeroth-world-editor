@@ -119,6 +119,7 @@ export const API_METHODS = [
   'debugAnswer',
   'updateCheck',
   'updateSkip',
+  'updateRemind',
   'updateOpen',
 ] as const satisfies readonly (keyof Api)[];
 

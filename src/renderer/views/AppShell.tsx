@@ -33,6 +33,7 @@ export function AppShell({ store }: { store: AppStore }): React.JSX.Element {
   const projectName = store((s) => s.project.name);
   const hasClient = store((s) => Boolean(s.summary?.clientDir));
   const recoveries = store((s) => s.recoveries);
+  const recoveriesLoaded = store((s) => s.recoveriesLoaded);
   const open = store((s) => s.open);
   const nodes = store((s) => s.nodes);
   const focus = store((s) => s.focus);
@@ -184,7 +185,7 @@ export function AppShell({ store }: { store: AppStore }): React.JSX.Element {
       {showProject && <ProjectDialog store={store} onClose={() => setShowProject(false)} />}
       {showSettings && <SettingsDialog store={store} onClose={() => setShowSettings(false)} />}
       <RecoveryDialog store={store} />
-      <UpdateDialog api={window.api} blocked={recoveries.length > 0} />
+      <UpdateDialog api={window.api} blocked={!recoveriesLoaded || recoveries.length > 0} />
     </div>
     </PlaceInWorldProvider>
     </ShowInWorldProvider>

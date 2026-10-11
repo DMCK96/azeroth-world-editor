@@ -5,7 +5,7 @@ import { trapTab } from '../components/trap-tab';
 import './ProjectDialog.css';
 import './UpdateDialog.css';
 
-type UpdateApi = Pick<Api, 'updateCheck' | 'updateSkip' | 'updateOpen'>;
+type UpdateApi = Pick<Api, 'updateCheck' | 'updateSkip' | 'updateRemind' | 'updateOpen'>;
 
 const Spans = ({ spans }: { spans: NoteSpan[] }): React.JSX.Element => (
   <>
@@ -57,17 +57,17 @@ function Notes({ body }: { body: string }): React.JSX.Element {
 
 /**
  * Tells the user a newer release is out, once per launch: the installed and the latest version and the
- * notes of every release in between. Remind me later only closes it (it comes back next launch), Skip
- * this update keeps it quiet until a newer version, and Update opens the release page. It waits while
- * `blocked` (the recovery dialog is up) and never asks twice.
+ * notes of every release in between. Remind me later closes it and tells main, so a reopened window does
+ * not ask again (it comes back next launch); Skip this update keeps it quiet until a newer version; Update
+ * opens the release page. It waits while `blocked` (the recovery dialog is up) and never asks twice.
  */
 export function UpdateDialog({ api, blocked }: { api: UpdateApi | undefined; blocked: boolean }): React.JSX.Element | null {
   const [offer, setOffer] = useState<UpdateOffer | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const asked = useRef(false);
   const dialog = useRef<HTMLDivElement | null>(null);
-  const primary = useRef<HTMLButtonElement | null>(null);
   const visible = offer !== null && !dismissed && !blocked;
 
   useEffect(() => {
@@ -78,30 +78,54 @@ export function UpdateDialog({ api, blocked }: { api: UpdateApi | undefined; blo
     });
   }, [api]);
 
-  // Focus moves in on opening and back to what had it on closing.
+  // Focus goes to the dialog itself, not a button: the offer can arrive while the user is typing in a field
+  // behind it, and a stray Space or Enter must not press Update. Back to what had focus on closing.
   useEffect(() => {
     if (!visible) return;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    primary.current?.focus();
+    dialog.current?.focus();
     return () => {
       if (opener?.isConnected) opener.focus();
     };
   }, [visible]);
 
+  const remindLater = (): void => {
+    void api?.updateRemind();
+    setDismissed(true);
+  };
+
+  // Caught before anything else hears it: a quest editor behind the dialog also closes on Escape.
+  useEffect(() => {
+    if (!visible) return;
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      if (!busy) remindLater();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [visible, busy, api]);
+
   if (!visible || !api) return null;
 
-  const close = (): void => setDismissed(true);
   const act = async (work: () => ReturnType<UpdateApi['updateSkip']>): Promise<void> => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
     const result = await work();
-    if (result.ok) close();
-    else setError(result.error.message);
+    if (result.ok) setDismissed(true);
+    else {
+      setError(result.error.message);
+      setBusy(false);
+    }
   };
 
   return (
     <div
       className="modal-backdrop"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) close();
+      // On press, not click: a drag that starts in the notes and ends here must not dismiss it.
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !busy) remindLater();
       }}
     >
       <div
@@ -110,10 +134,8 @@ export function UpdateDialog({ api, blocked }: { api: UpdateApi | undefined; blo
         aria-modal="true"
         aria-labelledby="update-title"
         ref={dialog}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') close();
-          else trapTab(e, dialog.current);
-        }}
+        tabIndex={-1}
+        onKeyDown={(e) => trapTab(e, dialog.current)}
       >
         <header className="modal__header">
           <h2 id="update-title">Update available</h2>
@@ -136,13 +158,13 @@ export function UpdateDialog({ api, blocked }: { api: UpdateApi | undefined; blo
           </p>
         )}
         <div className="update-dialog__actions">
-          <button type="button" className="btn" onClick={close}>
+          <button type="button" className="btn" disabled={busy} onClick={remindLater}>
             Remind me later
           </button>
-          <button type="button" className="btn" onClick={() => void act(() => api.updateSkip(offer.latest))}>
+          <button type="button" className="btn" disabled={busy} onClick={() => void act(() => api.updateSkip(offer.latest))}>
             Skip this update
           </button>
-          <button type="button" className="btn btn--primary" ref={primary} onClick={() => void act(() => api.updateOpen(offer.releaseUrl))}>
+          <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void act(() => api.updateOpen(offer.releaseUrl))}>
             Update
           </button>
         </div>

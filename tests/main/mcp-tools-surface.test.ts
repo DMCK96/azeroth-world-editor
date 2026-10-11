@@ -6,7 +6,7 @@ import { API_METHODS } from '../../src/shared/api-methods';
 const dir = join(__dirname, '../../src/main/mcp/tools');
 const sources = readdirSync(dir).filter((f) => f.endsWith('.ts')).map((f) => readFileSync(join(dir, f), 'utf8'));
 const called = [...new Set(sources.flatMap((s) => [...s.matchAll(/ctx\.call\(\s*'([A-Za-z]+)'/g)].map((m) => m[1]!)))];
-const FORBIDDEN = ['applyToDev', 'saveProfile', 'testConnection', 'deleteProfile', 'chooseServerDataDir', 'startupProfile', 'mcpStatus', 'mcpConfigure', 'mcpRegenerateToken', 'newProject', 'openProject', 'saveProject', 'saveProjectAs', 'renameProject', 'restoreRecovery', 'discardRecovery', 'forgetRecent', 'debugSetEnabled', 'debugRecord', 'debugAnswer', 'updateCheck', 'updateSkip', 'updateOpen'];
+const FORBIDDEN = ['applyToDev', 'saveProfile', 'testConnection', 'deleteProfile', 'chooseServerDataDir', 'startupProfile', 'mcpStatus', 'mcpConfigure', 'mcpRegenerateToken', 'newProject', 'openProject', 'saveProject', 'saveProjectAs', 'renameProject', 'restoreRecovery', 'discardRecovery', 'forgetRecent', 'debugSetEnabled', 'debugRecord', 'debugAnswer', 'updateCheck', 'updateSkip', 'updateRemind', 'updateOpen'];
 
 describe('what the MCP tools may reach', () => {
   it('only call real API methods', () => {

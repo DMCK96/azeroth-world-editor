@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UpdateDialog } from '../../src/renderer/views/UpdateDialog';
 import { makeMockApi, okv, errv } from './mock-api';
@@ -52,10 +52,11 @@ describe('UpdateDialog', () => {
     rerender(<UpdateDialog api={api} blocked={false} />);
     expect(api.updateCheck).toHaveBeenCalledTimes(1);
   });
-  it('Remind me later closes and stores nothing', async () => {
+  it('Remind me later closes, tells main so a reopened window stays quiet, and stores no skip', async () => {
     const { api } = open();
     await userEvent.click(await screen.findByRole('button', { name: 'Remind me later' }));
     expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(api.updateRemind).toHaveBeenCalledTimes(1);
     expect(api.updateSkip).not.toHaveBeenCalled();
     expect(api.updateOpen).not.toHaveBeenCalled();
   });
@@ -83,12 +84,59 @@ describe('UpdateDialog', () => {
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(api.updateSkip).not.toHaveBeenCalled();
+    expect(api.updateRemind).toHaveBeenCalledTimes(1);
     cleanup();
     const second = open();
     await screen.findByRole('alertdialog');
     await userEvent.click(second.container.querySelector('.modal-backdrop')!);
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(second.api.updateSkip).not.toHaveBeenCalled();
+  });
+  it('takes focus itself, so a stray Space or Enter from a field behind it presses nothing', async () => {
+    const { api } = open();
+    const dialog = await screen.findByRole('alertdialog');
+    expect(document.activeElement).toBe(dialog);
+    await userEvent.keyboard('{Enter} ');
+    expect(api.updateOpen).not.toHaveBeenCalled();
+    expect(api.updateSkip).not.toHaveBeenCalled();
+  });
+  it('keeps Escape from whatever is open behind it', async () => {
+    const behind = vi.fn();
+    document.addEventListener('keydown', behind);
+    try {
+      open();
+      await screen.findByRole('alertdialog');
+      await userEvent.keyboard('{Escape}');
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(behind).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('keydown', behind);
+    }
+  });
+  it('still hears Escape after a click on plain text moved focus away from the buttons', async () => {
+    open();
+    await userEvent.click(await screen.findByText('Installed', { exact: false }));
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+  it('a drag that starts in the notes and ends on the backdrop does not dismiss it', async () => {
+    const { container } = open();
+    await screen.findByRole('alertdialog');
+    fireEvent.mouseDown(screen.getByText(/Export is stable/));
+    const backdrop = container.querySelector('.modal-backdrop')!;
+    fireEvent.mouseUp(backdrop);
+    fireEvent.click(backdrop);
+    expect(screen.getByRole('alertdialog')).toBeTruthy();
+  });
+  it('a double click on Update opens the page once', async () => {
+    let release!: () => void;
+    const slow = vi.fn(() => new Promise((resolve) => { release = () => resolve(okv(null)); }));
+    open({ updateOpen: slow });
+    const button = await screen.findByRole('button', { name: 'Update' });
+    await userEvent.dblClick(button);
+    expect(slow).toHaveBeenCalledTimes(1);
+    release();
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
   });
   it('shows notes as inert text, never as markup or a link', async () => {
     const hostile = { ...offer, notes: [{ version: '0.8.0', title: 'v0.8.0', body: '<img src=x onerror=alert(1)>\n[go](javascript:alert(1))', url }] };

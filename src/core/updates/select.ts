@@ -14,7 +14,9 @@ export function selectUpdate(input: { releases: readonly Release[]; current: str
       const version = release.draft || release.prerelease ? null : normalizeVersion(release.tag);
       return version ? [{ release, version }] : [];
     })
-    .sort((a, b) => compareVersions(b.version, a.version));
+    .sort((a, b) => compareVersions(b.version, a.version))
+    // Two tags can name one version (v0.7.0 and 0.7.0): the first listed stands for it.
+    .filter((p, i, all) => i === 0 || p.version !== all[i - 1]!.version);
 
   const latest = published[0];
   if (!latest || compareVersions(latest.version, current) <= 0) return null;
