@@ -60,6 +60,20 @@
   background: var(--glass-bg-strong);
   backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.world3d__missing button {
+  flex: none;
+  padding: 0 0.25rem;
+  font-size: 16px;
+  line-height: 1;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
 }
 
 .world3d__help {

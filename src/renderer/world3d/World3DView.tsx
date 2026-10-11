@@ -271,6 +271,8 @@ function WorldStage({
   const [area, setArea] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [missing, setMissing] = useState<readonly string[]>([]);
+  // How many of the problems were closed: a newer problem brings the notice back
+  const [closedProblems, setClosedProblems] = useState(0);
   const [status, setStatus] = useState<'loading' | 'slow' | 'ready'>('loading');
   const [help, setHelp] = useState(false);
   const [layers, setLayers] = useState<Layers>(readLayers);
@@ -498,6 +500,7 @@ function WorldStage({
     setArea(null);
     onAreaRef.current?.(null);
     setMissing([]);
+    setClosedProblems(0);
     setStatus('loading');
     setSelected(null);
     setSummary(null);
@@ -672,7 +675,7 @@ function WorldStage({
               onAreaRef.current?.(name);
             },
             onReady: () => live && setStatus('ready'),
-            onProblems: (all) => live && setMissing(all),
+            onProblems: (all) => live && setMissing([...all]),
             onError: setProblem,
             onSelect: (spawn) => {
               if (!live) return;
@@ -1044,11 +1047,16 @@ function WorldStage({
     <div className="world3d" aria-label="3D view">
       <div ref={container} className="world3d__stage" onDragOver={onDragOver} onDragLeave={() => dragGround.reset()} onDrop={onDrop} />
       {showArea && area && <p className="world3d__area">{area}</p>}
-      {missing.length > 0 && (
+      {missing.length > closedProblems && (
         <p className="world3d__missing" title={missing.join('\n')}>
-          {missing.length === 1 ? '1 thing' : `${missing.length} things`} could not be loaded and {missing.length === 1 ? 'is' : 'are'} left out:{' '}
-          {missing.slice(0, 2).join('; ')}
-          {missing.length > 2 ? '; …' : ''} (all of them are in the console)
+          <span>
+            {missing.length === 1 ? '1 thing' : `${missing.length} things`} could not be loaded and {missing.length === 1 ? 'is' : 'are'} left out:{' '}
+            {missing.slice(0, 2).join('; ')}
+            {missing.length > 2 ? '; …' : ''} (all of them are in the console)
+          </span>
+          <button type="button" aria-label="Dismiss" title="Dismiss" onClick={() => setClosedProblems(missing.length)}>
+            ×
+          </button>
         </p>
       )}
       {!unavailable && (
