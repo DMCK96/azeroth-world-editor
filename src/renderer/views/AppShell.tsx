@@ -31,6 +31,7 @@ export function AppShell({ store }: { store: AppStore }): React.JSX.Element {
   const filePath = store((s) => s.project.filePath);
   const projectName = store((s) => s.project.name);
   const hasClient = store((s) => Boolean(s.summary?.clientDir));
+
   const open = store((s) => s.open);
   const nodes = store((s) => s.nodes);
   const focus = store((s) => s.focus);

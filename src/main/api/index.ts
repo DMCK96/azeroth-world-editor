@@ -11,6 +11,7 @@ import { createExportApi } from './export-api';
 import { createProjectApi } from './project-api';
 import { createMcpApi } from './mcp-api';
 import { createDebugApi } from './debug-api';
+import { createUpdatesApi } from './updates-api';
 import { createLoreApi } from './lore-api';
 import { createAuthoringApi } from './authoring-api';
 import type { ApiDeps } from './deps';
@@ -45,6 +46,7 @@ export function createApi(deps: ApiDeps): Api {
     ...createProjectApi(services),
     ...createMcpApi(deps),
     ...createDebugApi(deps),
+    ...createUpdatesApi(deps),
     ...createLoreApi(services, deps),
     ...createAuthoringApi(services),
   };

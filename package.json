@@ -14,6 +14,7 @@
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "npm run rebuild:electron && electron-vite dev",
+    "dev:fake-update": "npm run rebuild:electron && electron-vite dev -- --fake-update",
     "build": "npm run rebuild:electron && electron-vite build",
     "test": "npm run rebuild:node && vitest run",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",

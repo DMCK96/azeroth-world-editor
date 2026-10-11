@@ -9,6 +9,8 @@ export interface ProjectSlice {
   projectEpoch: number;
   recent: RecentProject[];
   recoveries: RecoveryEntry[];
+  /** The first read of the recovery copies has finished (found some or none), so dialogs can queue behind it. */
+  recoveriesLoaded: boolean;
   loadProjectState(): Promise<void>;
   /** Sends the debounced edit and any queued moves now, so nothing typed is left behind. */
   flushAll(): Promise<void>;
@@ -68,6 +70,7 @@ export function createProjectSlice({ api, kit, set, get }: SliceArgs): ProjectSl
     projectEpoch: 0,
     recent: [],
     recoveries: [],
+    recoveriesLoaded: false,
     async loadProjectState() {
       const { token, result } = await kit.readProject();
       if (result.ok && token === kit.projectToken) set({ project: result.value });
@@ -126,7 +129,8 @@ export function createProjectSlice({ api, kit, set, get }: SliceArgs): ProjectSl
     },
     async loadRecoveries() {
       const result = await api.recoveries();
-      if (result.ok) set({ recoveries: result.value });
+      // A failed read still ends the wait: nothing was found to offer.
+      set(result.ok ? { recoveries: result.value, recoveriesLoaded: true } : { recoveriesLoaded: true });
     },
     async restoreRecovery(id) {
       await get().flushAll();

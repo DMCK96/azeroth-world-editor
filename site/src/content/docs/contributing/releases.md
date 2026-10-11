@@ -28,7 +28,7 @@ Releases are built by the **Release** workflow when a version tag is pushed. It 
    - builds on Windows (`.exe`), macOS (`.dmg` and `.zip` for Apple silicon and Intel) and Linux (`.AppImage` and `.deb`),
    - checks each Mac build carries the right native module for its processor,
    - uploads everything to a draft release for the tag.
-4. Open the draft on the **Releases** page, edit the notes and publish it.
+4. Open the draft on the **Releases** page and edit the notes so they list every change since the previous release, one line each with its short commit hash. `git log --oneline v0.1.0..v0.2.0` lists them. The generated notes cover merged pull requests only and miss direct commits. Then publish the release. Users see these notes in the app's update dialog, so a change missing from them is a change they cannot read about.
 
 Before a release, regenerate the [docs screenshots](/azeroth-world-editor/contributing/docs-and-screenshots/) if screens changed.
 
@@ -39,7 +39,11 @@ Before a release, regenerate the [docs screenshots](/azeroth-world-editor/contri
 
 ## Signing and updates
 
-Builds are not code-signed, so Windows and macOS warn on first open; [Install](/azeroth-world-editor/getting-started/install/) explains how to get past it. The app does not update itself.
+Builds are not code-signed, so Windows and macOS warn on first open; [Install](/azeroth-world-editor/getting-started/install/) explains how to get past it. The app does not update itself. On launch it looks for a newer published release and, if there is one, shows a dialog with the release notes: **Update** opens the release page, **Skip this update** stays quiet until a newer one is published, and **Remind me later** asks again on the next launch. Drafts and pre-releases are never offered, so users see the dialog only once you publish.
+
+## Try the update dialog
+
+Run `npm run dev:fake-update`, or start any build with the `--fake-update` flag (`"Azeroth World Editor.exe" --fake-update`), or set the environment variable `AWE_FAKE_UPDATE=1`, and the app offers a made-up update, with sample notes, instead of asking GitHub. **Skip this update** stores nothing while it is set, so trying it never changes your real settings, and **Update** opens the real Releases page. To make an unpackaged build ask GitHub for real, set `AWE_UPDATE_CHECK=1` instead.
 
 ## Build locally
 

@@ -12,6 +12,7 @@ import type { McpApi } from './mcp';
 import type { LoreApi } from './lore';
 import type { AuthoringApi } from './authoring';
 import type { DebugApi } from './debug';
+import type { UpdatesApi } from './updates';
 
 /** Everything the renderer can ask the main process to do: every area's calls */
 export interface Api
@@ -28,4 +29,5 @@ export interface Api
     McpApi,
     LoreApi,
     AuthoringApi,
-    DebugApi {}
+    DebugApi,
+    UpdatesApi {}
