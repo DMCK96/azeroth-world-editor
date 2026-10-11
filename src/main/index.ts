@@ -419,6 +419,8 @@ void app.whenReady().then(() => {
     settings: createUpdateSettings(store),
     version: app.getVersion(),
     enabled: app.isPackaged || process.env['AWE_UPDATE_CHECK'] === '1',
+    // AWE_FAKE_UPDATE=1 offers a made-up update, to try the dialog without a release to find.
+    fake: process.env['AWE_FAKE_UPDATE'] === '1',
     openExternal: (url) => shell.openExternal(url),
     warn: (message) => console.warn(`Updates: ${message}`),
   });

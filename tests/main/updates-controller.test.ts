@@ -182,3 +182,36 @@ describe('open', () => {
     expect(opened).toEqual([]);
   });
 });
+
+describe('the fake update, for trying the dialog', () => {
+  it('offers a fake update without touching the network, even in a build that does not check', async () => {
+    const fetch = vi.fn(reply([]));
+    const { controller } = setup(fetch, { fake: true, enabled: false });
+    const offer = await controller.check();
+    expect(offer).toMatchObject({ current: '0.6.0' });
+    expect(offer!.notes.length).toBeGreaterThan(1);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('ignores a stored skip, and Skip stores nothing', async () => {
+    const { controller, settings } = setup(reply([]), { fake: true });
+    settings.setSkipped('9.9.9');
+    expect(await controller.check()).not.toBeNull();
+    controller.skip('0.8.0');
+    expect(settings.skipped()).toBe('9.9.9');
+    const second = setup(reply([]), { fake: true });
+    second.controller.skip('0.8.0');
+    expect(second.settings.skipped()).toBeNull();
+  });
+  it('still stays quiet for the rest of the launch once answered', async () => {
+    const { controller } = setup(reply([]), { fake: true });
+    expect(await controller.check()).not.toBeNull();
+    controller.remind();
+    expect(await controller.check()).toBeNull();
+  });
+  it('opens the real releases page from the fake offer', async () => {
+    const { controller, opened } = setup(reply([]), { fake: true });
+    const offer = await controller.check();
+    await controller.open(offer!.releaseUrl);
+    expect(opened).toEqual([offer!.releaseUrl]);
+  });
+});

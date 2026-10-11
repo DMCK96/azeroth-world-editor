@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compareVersions, normalizeVersion, parseVersion } from '../../src/core/updates/version';
 import { selectUpdate } from '../../src/core/updates/select';
 import type { Release } from '../../src/core/updates/types';
+import { fakeOffer } from '../../src/core/updates/fake';
 
 const rel = (tag: string, over: Partial<Release> = {}): Release => ({
   tag, name: tag, body: `notes for ${tag}`, url: `https://github.com/DMCK96/azeroth-world-editor/releases/tag/${tag}`, prerelease: false, draft: false, ...over,
@@ -74,5 +75,18 @@ describe('selectUpdate', () => {
     const offer = selectUpdate({ releases: [rel('v0.7.0', { name: null, body: null })], current: '0.6.0', skipped: null });
     expect(offer?.notes[0]).toMatchObject({ title: 'v0.7.0', body: '' });
     expect(selectUpdate({ releases: [rel('v0.7.0', { name: '   ' })], current: '0.6.0', skipped: null })?.notes[0]?.title).toBe('v0.7.0');
+  });
+});
+
+describe('fakeOffer', () => {
+  it('is a well-formed offer newer than the installed version, for trying the dialog', () => {
+    const offer = fakeOffer('0.6.0');
+    expect(offer.current).toBe('0.6.0');
+    expect(compareVersions(offer.latest, '0.6.0')).toBeGreaterThan(0);
+    expect(offer.notes.map((n) => n.version)).toEqual(['0.8.0', '0.7.0']);
+    expect(offer.latest).toBe('0.8.0');
+    expect(offer.notes.some((n) => n.body === '')).toBe(true);
+    expect(offer.notes.some((n) => /\*\*/.test(n.body))).toBe(true);
+    expect(offer.releaseUrl).toBe('https://github.com/DMCK96/azeroth-world-editor/releases');
   });
 });

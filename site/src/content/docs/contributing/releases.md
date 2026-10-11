@@ -41,6 +41,10 @@ Before a release, regenerate the [docs screenshots](/azeroth-world-editor/contri
 
 Builds are not code-signed, so Windows and macOS warn on first open; [Install](/azeroth-world-editor/getting-started/install/) explains how to get past it. The app does not update itself. On launch it looks for a newer published release and, if there is one, shows a dialog with the release notes: **Update** opens the release page, **Skip this update** stays quiet until a newer one is published, and **Remind me later** asks again on the next launch. Drafts and pre-releases are never offered, so users see the dialog only once you publish.
 
+## Try the update dialog
+
+Start the app with `AWE_FAKE_UPDATE=1` (for example `AWE_FAKE_UPDATE=1 npm run dev`) and it offers a made-up update, with sample notes, instead of asking GitHub. **Skip this update** stores nothing while it is set, so trying it never changes your real settings, and **Update** opens the real Releases page. To make an unpackaged build ask GitHub for real, set `AWE_UPDATE_CHECK=1` instead.
+
 ## Build locally
 
 `npm run dist` builds installers for your own platform into `dist/`. For an unpacked build to try quickly, run `npx electron-vite build && npx electron-builder --dir`.

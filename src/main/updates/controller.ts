@@ -1,3 +1,4 @@
+import { fakeOffer } from '../../core/updates/fake';
 import { selectUpdate } from '../../core/updates/select';
 import type { Release, UpdateOffer } from '../../core/updates/types';
 import { normalizeVersion } from '../../core/updates/version';
@@ -33,6 +34,8 @@ export interface UpdateControllerDeps {
   version: string;
   /** Off in unpackaged builds, so development never nags */
   enabled: boolean;
+  /** Offer a made-up update instead of asking GitHub (`AWE_FAKE_UPDATE=1`), for trying the dialog; Skip stores nothing */
+  fake?: boolean;
   openExternal(url: string): Promise<void>;
   timeoutMs?: number;
   warn?(message: string): void;
@@ -108,7 +111,9 @@ export function createUpdateController(deps: UpdateControllerDeps): UpdateContro
 
   return {
     async check() {
-      if (!deps.enabled || answered) return null;
+      if (answered) return null;
+      if (deps.fake) return fakeOffer(deps.version);
+      if (!deps.enabled) return null;
       const releases = await fetchReleases();
       if (!releases) return null;
       try {
@@ -120,7 +125,7 @@ export function createUpdateController(deps: UpdateControllerDeps): UpdateContro
     },
     skip(version) {
       if (normalizeVersion(version) === null) throw fail('BAD_REQUEST', 'That is not a version number.');
-      settings.setSkipped(version);
+      if (!deps.fake) settings.setSkipped(version);
       answered = true;
     },
     remind() {
