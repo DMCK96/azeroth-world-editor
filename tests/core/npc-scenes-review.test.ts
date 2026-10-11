@@ -22,8 +22,9 @@ describe('review: existing NPC re-export keeps SmartAI', () => {
   const template = { entry: '1423', name: 'Guard', subname: '', minlevel: '55', maxlevel: '56', faction: '11', rank: '1', type: '7', npcflag: '1', HealthModifier: '1', DamageModifier: '1', AIName: '', ScriptName: '', lootid: '0' };
   const model = { CreatureID: '1423', Idx: '0', CreatureDisplayID: '3167', DisplayScale: '1', Probability: '1' };
   const read = npcFromRows(1423, { creature_template: [template], creature_template_model: [model] }, { sharedLoot: 0, spawnCount: 1 });
+  // An NPC whose template is as it was read writes none, which leaves its AI as it was ('')
   const aiOf = (npc: typeof read) =>
-    (existingStatements({ ...EMPTY_ENTITIES, npcs: [npc] }, []).apply.find((s) => s.kind === 'insert' && s.table === 'creature_template') as { row: Record<string, string> }).row.AIName;
+    (existingStatements({ ...EMPTY_ENTITIES, npcs: [npc] }, []).apply.find((s) => s.kind === 'insert' && s.table === 'creature_template') as { row: Record<string, string> } | undefined)?.row.AIName ?? ''; 
 
   it('writes SmartAI for an NPC given scenes whose snapshot said no AI, and leaves one without scenes as it was', () => {
     expect(aiOf({ ...read, scenes: [scene('s1')] })).toBe('SmartAI');

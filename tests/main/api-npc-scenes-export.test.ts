@@ -60,10 +60,12 @@ describe('exporting an NPC with scenes', () => {
     await api.putProjectEntities({ npcs: [npc], objects: [], items: [] });
     const out: any = await api.exportProject();
     expect(out.ok, JSON.stringify(out.error)).toBe(true);
-    const keys = [...out.value.sql.matchAll(/INSERT INTO `smart_scripts` \(.*?\) VALUES \((\d+), (\d+), (\d+), (\d+),/g)].map((m: RegExpMatchArray) => m.slice(1, 5).join('/'));
+    // Every row of the table's one INSERT: the first follows VALUES, the others start a line
+    const rowsOf = (table: string): string => String(out.value.sql).match(new RegExp('INSERT INTO `' + table + '` [\\s\\S]*?;\\n'))?.[0] ?? '';
+    const keys = [...rowsOf('smart_scripts').matchAll(/(?:VALUES |\n)\((\d+), (\d+), (\d+), (\d+),/g)].map((m: RegExpMatchArray) => m.slice(1, 5).join('/'));
     expect(keys.length).toBeGreaterThan(2);
     expect(new Set(keys).size).toBe(keys.length);
-    const groups = [...out.value.sql.matchAll(/INSERT INTO `creature_text` \(.*?\) VALUES \((\d+), (\d+), (\d+),/g)].map((m: RegExpMatchArray) => m.slice(1, 4).join('/'));
+    const groups = [...rowsOf('creature_text').matchAll(/(?:VALUES |\n)\((\d+), (\d+), (\d+),/g)].map((m: RegExpMatchArray) => m.slice(1, 4).join('/'));
     expect(groups.length).toBeGreaterThan(2);
     expect(new Set(groups).size).toBe(groups.length);
   });

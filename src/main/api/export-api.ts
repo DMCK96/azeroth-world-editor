@@ -98,7 +98,7 @@ export function createExportApi(s: Services): ExportApi {
           ...eventWarnings,
         ];
         const date = patchDate(deps.now());
-        const sql = renderPatch(apply, schema, { toolVersion: TOOL_VERSION, date, label: 'Project changes' });
+        const sql = renderPatch(apply, schema, { toolVersion: TOOL_VERSION, date, label: 'Project changes', lint: true });
         const revertSql = renderPatch(revert, schema, { toolVersion: TOOL_VERSION, date, label: 'Project changes: revert' });
 
         // The same folder a quest's patch goes to, numbered per day like quest exports
@@ -173,7 +173,7 @@ export function createExportApi(s: Services): ExportApi {
         let projectSql: string | null = null;
         if (hasProject) {
           const project = await projectPatch(live);
-          projectSql = renderPatch(project.apply, project.schema, { toolVersion: TOOL_VERSION, date, label: 'Project changes' });
+          projectSql = renderPatch(project.apply, project.schema, { toolVersion: TOOL_VERSION, date, label: 'Project changes', lint: true });
         }
         return { path, sql, warnings, issues: issues.filter((i) => i.severity !== 'error'), usesProject, projectSql };
       }),

@@ -118,6 +118,63 @@ describe('renderPatch and patchFileName', () => {
     expect(sql).toContain('UPDATE `creature_template` SET `npcflag` = `npcflag` | 2 WHERE `entry` = 100;');
     expect(() => renderPatch([{ kind: 'set-flag', table: 'creature_template', column: 'npcflag', bit: 2, key: { entry: '1 OR 1=1' } }], schema, { toolVersion: 'v', questId: 1, date: 'd' })).toThrow();
   });
+  describe('as the repo lint wants it (lint: true)', () => {
+    const meta = { toolVersion: '0.1.0', label: 'Project changes', date: '2026_09_21', lint: true };
+    const col = (name: string, ordinal: number, isKey = false) => ({ name, dataType: 'int', columnType: 'int', nullable: false, default: '0', ordinal, isKey });
+    const lintSchema: any = {
+      hash: 'h', forbidden: [],
+      tables: {
+        creature_template: [col('entry', 0, true), col('minlevel', 1), col('maxlevel', 2)],
+        creature_template_model: [col('CreatureID', 0, true), col('Idx', 1, true), col('CreatureDisplayID', 2)],
+      },
+    };
+
+    it('writes the deletes of a table then one multi-row INSERT, however the statements were ordered', () => {
+      const sql = renderPatch([
+        { kind: 'delete', table: 'creature_template_model', key: { CreatureID: '1', Idx: '0' } },
+        { kind: 'delete', table: 'creature_template_model', key: { CreatureID: '2', Idx: '0' } },
+        { kind: 'insert', table: 'creature_template_model', row: { CreatureID: '1', Idx: '0', CreatureDisplayID: '10' } },
+        { kind: 'insert', table: 'creature_template_model', row: { CreatureID: '2', Idx: '0', CreatureDisplayID: '20' } },
+      ], lintSchema, meta);
+      expect(sql.split('\n').filter((l) => !l.startsWith('--') && l !== '').join('\n')).toBe([
+        'DELETE FROM `creature_template_model` WHERE `CreatureID` = 1 AND `Idx` = 0;',
+        'DELETE FROM `creature_template_model` WHERE `CreatureID` = 2 AND `Idx` = 0;',
+        'INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`) VALUES (1, 0, 10),',
+        '(2, 0, 20);',
+      ].join('\n'));
+    });
+
+    it('upserts a protected template table instead of deleting from it', () => {
+      const sql = renderPatch([
+        { kind: 'delete', table: 'creature_template', key: { entry: '1' } },
+        { kind: 'insert', table: 'creature_template', row: { entry: '1', minlevel: '5', maxlevel: '6' } },
+      ], lintSchema, meta);
+      expect(sql).not.toContain('DELETE FROM');
+      expect(sql).toContain('INSERT INTO `creature_template` (`entry`, `minlevel`, `maxlevel`) VALUES (1, 5, 6) ON DUPLICATE KEY UPDATE `minlevel` = VALUES(`minlevel`), `maxlevel` = VALUES(`maxlevel`);');
+    });
+
+    it('keeps each table together even when other tables sit between its statements', () => {
+      const sql = renderPatch([
+        { kind: 'delete', table: 'creature_template_model', key: { CreatureID: '1', Idx: '0' } },
+        { kind: 'delete', table: 'creature_template', key: { entry: '1' } },
+        { kind: 'insert', table: 'creature_template', row: { entry: '1', minlevel: '5', maxlevel: '6' } },
+        { kind: 'insert', table: 'creature_template_model', row: { CreatureID: '1', Idx: '0', CreatureDisplayID: '10' } },
+      ], lintSchema, meta);
+      const heads = sql.split('\n').filter((l) => /^(DELETE FROM|INSERT INTO) /.test(l)).map((l) => /^(DELETE FROM|INSERT INTO) `\w+`/.exec(l)![0]);
+      // Tables come in the order their rows do; each keeps its deletes right before its INSERT
+      expect(heads).toEqual(['INSERT INTO `creature_template`', 'DELETE FROM `creature_template_model`', 'INSERT INTO `creature_template_model`']);
+    });
+
+    it('renders as before without the flag (the revert, and quest patches)', () => {
+      const sql = renderPatch([
+        { kind: 'delete', table: 'creature_template', key: { entry: '1' } },
+        { kind: 'insert', table: 'creature_template', row: { entry: '1', minlevel: '5', maxlevel: '6' } },
+      ], lintSchema, { ...meta, lint: false });
+      expect(sql).toContain('DELETE FROM `creature_template` WHERE `entry` = 1;');
+      expect(sql).not.toContain('ON DUPLICATE');
+    });
+  });
+
   it('builds slugged file names', () => {
     expect(patchFileName({ date: '2026_09_21', sequence: 0, questId: 60001, title: "Wolves of Elwynn!" }))
       .toBe('2026_09_21_00_quest_60001_wolves_of_elwynn.sql');

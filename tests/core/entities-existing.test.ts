@@ -36,13 +36,12 @@ describe('existingStatements', () => {
     const { apply, revert } = existingStatements(store(next), []);
     expect(apply).toContainEqual({ kind: 'delete', table: 'creature_loot_template', key: { Entry: '1423' } });
     expect(apply).toContainEqual({ kind: 'insert', table: 'creature_loot_template', row: { Entry: '1423', Item: '774', Reference: '0', Chance: '10', QuestRequired: '1', LootMode: '1', GroupId: '0', MinCount: '1', MaxCount: '1', Comment: '' } });
-    expect(revert).toEqual(expect.arrayContaining([
-      { kind: 'delete', table: 'creature_template', key: { entry: '1423' } },
-      { kind: 'insert', table: 'creature_template', row: template },
+    expect(revert).toEqual([
       { kind: 'delete', table: 'creature_loot_template', key: { Entry: '1423' } },
       { kind: 'insert', table: 'creature_loot_template', row: loot },
-      { kind: 'insert', table: 'creature_template_model', row: model },
-    ]));
+    ]);
+    // The template and model rows are as they were read, so neither file touches them
+    expect([...apply, ...revert].filter((s) => s.table === 'creature_template' || s.table === 'creature_template_model')).toEqual([]);
   });
 
   it('leaves a locked loot list alone', () => {
@@ -72,9 +71,9 @@ describe('existingStatements', () => {
 
   it('writes Seen by into flags_extra and type_flags, keeping their other bits; leaves them alone when unchanged or not set', () => {
     const flagged = npcFromRows(1423, { ...rows, creature_template: [{ ...template, flags_extra: '64', type_flags: '4' }] }, { sharedLoot: 0, spawnCount: 3 });
-    const row = (npc: typeof guard) => (existingStatements(store(npc), []).apply.find((s) => s.kind === 'insert' && s.table === 'creature_template') as any).row;
+    const row = (npc: typeof guard) => (existingStatements(store(npc), []).apply.find((s) => s.kind === 'insert' && s.table === 'creature_template') as any)?.row;
     expect(row({ ...flagged, seenBy: 'dead' })).toMatchObject({ flags_extra: '1088', type_flags: '4' });
-    expect(row(flagged)).toMatchObject({ flags_extra: '64', type_flags: '4' });
+    expect(row(flagged)).toBeUndefined();
     const saved = { ...flagged };
     delete (saved as any).seenBy;
     expect(row({ ...saved, minLevel: 60 })).toMatchObject({ flags_extra: '64', type_flags: '4' });
@@ -99,7 +98,7 @@ describe('existingStatements, more of an object', () => {
 
   it('keeps a chest\'s loot under its own list and its other Data columns', () => {
     const chest = objectFromRows(2843, { gameobject_template: [chestRow], gameobject_loot_template: [chestLoot] }, { sharedLoot: 0, spawnCount: 1 });
-    const { apply, revert } = existingStatements({ ...EMPTY_ENTITIES, objects: [{ ...chest, loot: [] }] }, []);
+    const { apply, revert } = existingStatements({ ...EMPTY_ENTITIES, objects: [{ ...chest, name: 'Old Chest', loot: [] }] }, []);
     expect((apply.find((s) => s.kind === 'insert' && s.table === 'gameobject_template') as any).row).toMatchObject({ Data0: '57', Data1: '2843', Data8: '0' });
     expect(apply).toContainEqual({ kind: 'delete', table: 'gameobject_loot_template', key: { Entry: '2843' } });
     expect(apply.some((s) => s.kind === 'insert' && s.table === 'gameobject_loot_template')).toBe(false);
@@ -179,7 +178,7 @@ describe('existingStatements keeps what the editor did not change', () => {
   it('writes an NPC with no edits exactly as the database had it', () => {
     const odd = { ...template, type: '0', rank: '7', faction: null, minlevel: '' };
     const npc = npcFromRows(1423, { creature_template: [odd] }, { sharedLoot: 0, spawnCount: 0 });
-    expect(insertOf(existingStatements(store({ ...npc, loot: [] }), []).apply, 'creature_template')).toEqual(odd);
+    expect(insertOf(existingStatements(store({ ...npc, name: 'Renamed', loot: [] }), []).apply, 'creature_template')).toEqual({ ...odd, name: 'Renamed' });
   });
 
   it('keeps an item\'s stat and spell slots as they were (zero stats, gaps, empty-slot cooldowns) unless edited', () => {

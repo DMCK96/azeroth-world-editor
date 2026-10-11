@@ -38,7 +38,7 @@ describe('exporting a new NPC with a gossip menu', () => {
     expect(out.ok, JSON.stringify(out.error)).toBe(true);
     expect(out.value.sql).toMatch(/INSERT INTO `gossip_menu` \(.*\) VALUES \(932535, 9780013/);
     expect(out.value.sql).toMatch(/INSERT INTO `npc_text` \(.*\) VALUES \(9780013, 'Hail'/);
-    expect(out.value.sql).toMatch(/INSERT INTO `gossip_menu_option` \(.*\) VALUES \(932535, 1, /);
+    expect(out.value.sql).toMatch(/INSERT INTO `gossip_menu_option` \(.*\) VALUES[\s\S]*\(932535, 1, /);
     expect(out.value.sql).toMatch(/INSERT INTO `creature_template` \(.*\) VALUES \(12000001,.*932535/);
     const revert = written.get(out.value.revertPath)!;
     expect(revert).toMatch(/DELETE FROM `gossip_menu_option` WHERE `MenuID` = 932535 AND `OptionID` = 1/);
