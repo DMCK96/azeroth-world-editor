@@ -43,7 +43,7 @@ Builds are not code-signed, so Windows and macOS warn on first open; [Install](/
 
 ## Try the update dialog
 
-Start the app with `AWE_FAKE_UPDATE=1` (for example `AWE_FAKE_UPDATE=1 npm run dev`) and it offers a made-up update, with sample notes, instead of asking GitHub. **Skip this update** stores nothing while it is set, so trying it never changes your real settings, and **Update** opens the real Releases page. To make an unpackaged build ask GitHub for real, set `AWE_UPDATE_CHECK=1` instead.
+Run `npm run dev:fake-update`, or start any build with the `--fake-update` flag (`"Azeroth World Editor.exe" --fake-update`), or set the environment variable `AWE_FAKE_UPDATE=1`, and the app offers a made-up update, with sample notes, instead of asking GitHub. **Skip this update** stores nothing while it is set, so trying it never changes your real settings, and **Update** opens the real Releases page. To make an unpackaged build ask GitHub for real, set `AWE_UPDATE_CHECK=1` instead.
 
 ## Build locally
 

@@ -38,6 +38,7 @@ import { createDebugRecorder } from './debug/recorder';
 import { createRendererLink } from './debug/renderer-link';
 import { createDebugSettings } from './debug/settings';
 import { createUpdateController, type UpdateController } from './updates/controller';
+import { wantsFakeUpdate } from './updates/flags';
 import { createUpdateSettings } from './updates/settings';
 
 /**
@@ -419,8 +420,8 @@ void app.whenReady().then(() => {
     settings: createUpdateSettings(store),
     version: app.getVersion(),
     enabled: app.isPackaged || process.env['AWE_UPDATE_CHECK'] === '1',
-    // AWE_FAKE_UPDATE=1 offers a made-up update, to try the dialog without a release to find.
-    fake: process.env['AWE_FAKE_UPDATE'] === '1',
+    // --fake-update (or AWE_FAKE_UPDATE=1) offers a made-up update, to try the dialog without a release to find.
+    fake: wantsFakeUpdate(process.env, process.argv),
     openExternal: (url) => shell.openExternal(url),
     warn: (message) => console.warn(`Updates: ${message}`),
   });

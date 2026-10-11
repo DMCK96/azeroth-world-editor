@@ -107,7 +107,7 @@ More: [Docs and screenshots](https://dmck96.github.io/azeroth-world-editor/contr
 3. The Release workflow checks the tag matches, runs the tests, and builds unsigned installers for Windows, macOS and Linux into a draft release.
 4. Edit the draft's notes so they list every change in `git log --oneline vPREVIOUS..vNEW`, one line each with its short commit hash (the generated notes list merged pull requests only and miss direct commits), then publish it. The app's update dialog shows these notes to users.
 
-To see the update dialog without a release to find, start the app with `AWE_FAKE_UPDATE=1` (`AWE_FAKE_UPDATE=1 npm run dev`): it offers a made-up update, and Skip stores nothing. `AWE_UPDATE_CHECK=1` makes an unpackaged build ask GitHub for real.
+To see the update dialog without a release to find, run `npm run dev:fake-update` (or start any build with `--fake-update`, or set `AWE_FAKE_UPDATE=1`): it offers a made-up update, and Skip stores nothing. `AWE_UPDATE_CHECK=1` makes an unpackaged build ask GitHub for real.
 
 More: [Releases](https://dmck96.github.io/azeroth-world-editor/contributing/releases/)
 
