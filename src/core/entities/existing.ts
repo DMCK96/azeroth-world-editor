@@ -58,23 +58,34 @@ function keepUnedited(row: Row, asRead: Row, original: Row, blocks: readonly (re
   return out;
 }
 
-/** Writes one table: deletes each key, inserts the rows; the revert deletes the same keys and inserts the originals under them */
+/**
+ * Writes one table: deletes each key, inserts the rows; the revert deletes the same keys and inserts the originals under them.
+ * Rows that are the ones the database already has under those keys write nothing, in either file.
+ */
 function writeTable(out: Statements, origin: Existing, table: string, keys: Record<string, string>[], rows: Row[]): void {
+  const original = rowsOf(origin, table).filter((row) => keys.some((key) => matches(row, key)));
+  if (sameRows(original, rows as RawRow[])) return;
   for (const key of keys) {
     out.apply.push({ kind: 'delete', table, key });
     out.revert.push({ kind: 'delete', table, key });
   }
   for (const row of rows) out.apply.push({ kind: 'insert', table, row: row as RawRow });
-  for (const row of rowsOf(origin, table)) {
-    if (keys.some((key) => matches(row, key))) out.revert.push({ kind: 'insert', table, row: row as RawRow });
-  }
+  for (const row of original) out.revert.push({ kind: 'insert', table, row: row as RawRow });
 }
 
-const lootRows = (lootId: number, loot: readonly LootRow[]): Row[] =>
-  loot.map((row) => ({
-    Entry: text(lootId), Item: text(row.item), Reference: '0', Chance: text(row.chance), QuestRequired: row.questOnly ? '1' : '0',
-    LootMode: '1', GroupId: '0', MinCount: text(row.min), MaxCount: text(row.max), Comment: '',
-  }));
+/** The loot rows of a list; a row for an item the list already had keeps the columns the editor does not model (`Comment`) */
+const lootRows = (lootId: number, loot: readonly LootRow[], original: readonly Row[]): Row[] => {
+  const unused = original.filter((r) => num(r.Entry) === lootId);
+  return loot.map((row) => {
+    const at = unused.findIndex((r) => num(r.Item) === row.item);
+    const same = at >= 0 ? unused.splice(at, 1)[0] : undefined;
+    return {
+      Reference: '0', GroupId: '0', Comment: '', ...same,
+      Entry: text(lootId), Item: text(row.item), Chance: text(row.chance), QuestRequired: row.questOnly ? '1' : '0',
+      LootMode: '1', MinCount: text(row.min), MaxCount: text(row.max),
+    };
+  });
+};
 
 /** The stock rows, slot by position; a row for an item and cost the database already had keeps its other columns (`VerifiedBuild`) */
 const vendorRows = (entry: string, vendor: readonly VendorItem[], original: readonly Row[]): Row[] =>
@@ -320,7 +331,7 @@ function npcStatements(out: Statements, npc: CustomNpc, origin: Existing, givers
       : []);
   }
 
-  if (!lootLocked && lootId > 0) writeTable(out, origin, 'creature_loot_template', [{ Entry: text(lootId) }], lootRows(lootId, npc.loot));
+  if (!lootLocked && lootId > 0) writeTable(out, origin, 'creature_loot_template', [{ Entry: text(lootId) }], lootRows(lootId, npc.loot, rowsOf(origin, 'creature_loot_template')));
   if (vendorChanged) writeTable(out, origin, 'npc_vendor', [{ entry }], vendorRows(entry, npc.vendor, rowsOf(origin, 'npc_vendor')));
   if (trainerChanged) writeTrainer(out, origin, entry, npc.trainer, asRead.trainer);
   if (gossipChanged) writeGossip(out, origin, npc.gossipMenu, asRead.gossipMenu);
@@ -348,7 +359,7 @@ function objectStatements(out: Statements, object: CustomObject, origin: Existin
     }
   }
   writeTable(out, origin, 'gameobject_template', [{ entry }], [row]);
-  if (!origin.locked.includes('loot') && lootId > 0) writeTable(out, origin, 'gameobject_loot_template', [{ Entry: text(lootId) }], lootRows(lootId, object.loot));
+  if (!origin.locked.includes('loot') && lootId > 0) writeTable(out, origin, 'gameobject_loot_template', [{ Entry: text(lootId) }], lootRows(lootId, object.loot, rowsOf(origin, 'gameobject_loot_template')));
   writePages(out, origin, object.pages);
 }
 

@@ -41,22 +41,16 @@ describe('writing an existing NPC\'s gossip', () => {
     expect(templateRowOf(npc)).toMatchObject({ gossip_menu_id: '5000', npcflag: '129' });
   });
 
-  it('writes only the menu that changed, keyed option by option, keeping other options untouched and clearing the edited text\'s broadcast id', () => {
+  it('writes only the option that changed, keyed option by option, clearing the edited text\'s broadcast id; the menu and text rows it left as they were are not written', () => {
     const edited = withMenu(read(), 0, (m) => ({ ...m, options: m.options.map((o) => (o.optionId === 1 ? { ...o, text: 'Tell me more' } : o)) }));
     const { apply, revert } = gossipStatements(edited);
     expect(apply).toEqual([
-      { kind: 'delete', table: 'gossip_menu', key: { MenuID: '5000', TextID: '7000' } },
-      { kind: 'insert', table: 'gossip_menu', row: menuRow('5000', '7000') },
-      { kind: 'delete', table: 'npc_text', key: { ID: '7000' } },
-      { kind: 'insert', table: 'npc_text', row: textRow('7000') },
       { kind: 'delete', table: 'gossip_menu_option', key: { MenuID: '5000', OptionID: '0' } },
       { kind: 'delete', table: 'gossip_menu_option', key: { MenuID: '5000', OptionID: '1' } },
       { kind: 'insert', table: 'gossip_menu_option', row: optionRow('5000', '0', { OptionText: 'Browse', OptionIcon: '1', OptionType: '3', OptionNpcFlag: '128' }) },
       { kind: 'insert', table: 'gossip_menu_option', row: optionRow('5000', '1', { OptionText: 'Tell me more', OptionBroadcastTextID: '0', ActionMenuID: '5001' }) },
     ]);
     expect(revert.filter((s) => s.kind === 'insert')).toEqual([
-      { kind: 'insert', table: 'gossip_menu', row: menuRow('5000', '7000') },
-      { kind: 'insert', table: 'npc_text', row: textRow('7000') },
       { kind: 'insert', table: 'gossip_menu_option', row: optionRow('5000', '0', { OptionText: 'Browse', OptionIcon: '1', OptionType: '3', OptionNpcFlag: '128' }) },
       { kind: 'insert', table: 'gossip_menu_option', row: optionRow('5000', '1', { OptionText: 'More', ActionMenuID: '5001' }) },
     ]);
@@ -65,7 +59,8 @@ describe('writing an existing NPC\'s gossip', () => {
 
   it('clears a variant\'s broadcast id only when its text changed', () => {
     const same = withMenu(read(), 0, (m) => ({ ...m, options: [...m.options, { optionId: 2, icon: 0, text: 'New', action: { kind: 'close' }, kept: false }] }));
-    expect(gossipStatements(same).apply).toContainEqual({ kind: 'insert', table: 'npc_text', row: textRow('7000') });
+    // The text is as it was read, so its row is not written
+    expect(gossipStatements(same).apply.filter((s) => s.table === 'npc_text')).toEqual([]);
     const changed = withMenu(read(), 0, (m) => ({ ...m, greeting: [{ ...m.greeting[0]!, text: 'Welcome' }] }));
     expect(gossipStatements(changed).apply).toContainEqual({ kind: 'insert', table: 'npc_text', row: textRow('7000', { text0_0: 'Welcome', BroadcastTextID0: '0' }) });
   });
@@ -157,8 +152,8 @@ describe('writing an existing NPC\'s gossip', () => {
 
   it('keeps a text column the database left NULL as NULL', () => {
     const nulled = read({ ...gossipRows, npc_text: [textRow('7000', { text0_1: null }), textRow('7001')] });
-    const edited = withMenu(nulled, 0, (m) => ({ ...m, options: [] }));
-    expect(gossipStatements(edited).apply).toContainEqual({ kind: 'insert', table: 'npc_text', row: textRow('7000', { text0_1: null }) });
+    const edited = withMenu(nulled, 0, (m) => ({ ...m, greeting: [{ ...m.greeting[0]!, text: 'Welcome' }] }));
+    expect(gossipStatements(edited).apply).toContainEqual({ kind: 'insert', table: 'npc_text', row: textRow('7000', { text0_0: 'Welcome', BroadcastTextID0: '0', text0_1: null }) });
   });
 
   it('never touches gossip it did not read (a project saved before gossip, or a fork without the tables)', () => {

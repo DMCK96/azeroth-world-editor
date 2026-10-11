@@ -35,9 +35,8 @@ describe('writing an existing NPC\'s trainer', () => {
     const edited = { ...npc, trainer: { ...npc.trainer!, greeting: 'Welcome!', spells: [{ ...npc.trainer!.spells[0]!, cost: 250 }, { spell: 5, cost: 1, reqLevel: 2, reqSkill: 0, reqSkillRank: 0, reqSpells: [78] }] } };
     const { apply, revert } = trainerStatements(edited);
     const added = { TrainerId: '17', SpellId: '5', MoneyCost: '1', ReqSkillLine: '0', ReqSkillRank: '0', ReqAbility1: '78', ReqAbility2: '0', ReqAbility3: '0', ReqLevel: '2' };
+    // The default-trainer link is as it was read, so it is not written
     expect(apply).toEqual([
-      { kind: 'delete', table: 'creature_default_trainer', key: { CreatureId: '198' } },
-      { kind: 'insert', table: 'creature_default_trainer', row: defaultRow },
       { kind: 'delete', table: 'trainer', key: { Id: '17' } },
       { kind: 'insert', table: 'trainer', row: { ...trainerRow, Greeting: 'Welcome!' } },
       { kind: 'delete', table: 'trainer_spell', key: { TrainerId: '17' } },
@@ -45,8 +44,6 @@ describe('writing an existing NPC\'s trainer', () => {
       { kind: 'insert', table: 'trainer_spell', row: spell('78', { MoneyCost: '250' }) },
     ]);
     expect(revert).toEqual([
-      { kind: 'delete', table: 'creature_default_trainer', key: { CreatureId: '198' } },
-      { kind: 'insert', table: 'creature_default_trainer', row: defaultRow },
       { kind: 'delete', table: 'trainer', key: { Id: '17' } },
       { kind: 'insert', table: 'trainer', row: trainerRow },
       { kind: 'delete', table: 'trainer_spell', key: { TrainerId: '17' } },
@@ -102,7 +99,7 @@ describe('writing an existing NPC\'s trainer', () => {
 
   it('keeps a greeting the database left NULL as NULL until it is written', () => {
     const nulled = npcFromRows(198, { ...trained, trainer: [{ ...trainerRow, Greeting: null as never }] }, counts);
-    const edited = { ...nulled, trainer: { ...nulled.trainer!, spells: [] } };
+    const edited = { ...nulled, trainer: { ...nulled.trainer!, requirement: nulled.trainer!.requirement + 1, spells: [] } };
     expect(trainerStatements(edited).apply.find((s) => s.table === 'trainer' && s.kind === 'insert')).toMatchObject({ row: { Greeting: null } });
     const written = { ...nulled, trainer: { ...nulled.trainer!, greeting: 'Hi' } };
     expect(trainerStatements(written).apply.find((s) => s.table === 'trainer' && s.kind === 'insert')).toMatchObject({ row: { Greeting: 'Hi' } });

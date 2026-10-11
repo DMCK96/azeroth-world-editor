@@ -169,7 +169,7 @@ describe('the world layer through the API', () => {
     const out: any = await api.exportProject();
     expect(out.ok).toBe(true);
     const sql = written.get(out.value.applyPath)!;
-    expect(sql).toMatch(/INSERT INTO `waypoint_data` .*`velocity`.*VALUES \(801, 3, 30, 0, 1,/);
+    expect(sql).toMatch(/INSERT INTO `waypoint_data` .*`velocity`.*VALUES[\s\S]*\(801, 3, 30, 0, 1,/);
   });
 
   it('keeps both of two edits to different spawns that overlap', async () => {

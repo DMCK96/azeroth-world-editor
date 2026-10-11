@@ -1,5 +1,5 @@
-import type { ColumnInfo, SchemaInfo } from '../db/types';
-import { SqlRenderError, ident, renderDelete, renderInsert, renderValue } from '../sql/render';
+import type { ColumnInfo, RawRow, SchemaInfo } from '../db/types';
+import { SqlRenderError, ident, renderDelete, renderInsert, renderInserts, renderValue } from '../sql/render';
 import type { PatchStatement } from './build-patch';
 
 export interface PatchMeta {
@@ -8,7 +8,15 @@ export interface PatchMeta {
   /** The quest a patch is for; a patch that is not a quest's names its `label` instead. */
   questId?: number;
   label?: string;
+  /**
+   * Written the way the azerothcore-coa SQL lint reads it: each table's deletes followed by one multi-row
+   * INSERT, and the tables the lint protects upserted with no DELETE. Off for a revert, which is not linted.
+   */
+  lint?: boolean;
 }
+
+/** The tables the lint never lets a patch delete from: their rows are written over instead */
+const LINT_PROTECTED: ReadonlySet<string> = new Set(['creature_template', 'gameobject_template', 'item_template', 'quest_template']);
 
 const UNSIGNED_INT_TEXT = /^\d+$/;
 /** Slug length that keeps the whole file name comfortably inside path limits. */
@@ -81,6 +89,36 @@ export function renderStatement(s: PatchStatement, schema: SchemaInfo): string {
   return renderInsert(s.table, columnsOf(schema, s.table), s.row);
 }
 
+/**
+ * The statements as the lint reads them: the tables that are only deleted from, then each table that is
+ * written, in the order its first row comes, as its deletes and one INSERT of all its rows; then the flag
+ * updates and the other updates. A delete only touches its own table, so moving a table's statements together
+ * changes nothing a patch does.
+ */
+function lintBlocks(statements: readonly PatchStatement[], schema: SchemaInfo): string[][] {
+  const tables = new Map<string, { deletes: string[]; rows: RawRow[] }>();
+  const flags: string[] = [];
+  const updates: string[] = [];
+  const own = (table: string) => tables.get(table) ?? tables.set(table, { deletes: [], rows: [] }).get(table)!;
+  for (const s of statements) {
+    if (s.kind === 'insert') own(s.table).rows.push(s.row);
+    else if (s.kind === 'delete') own(s.table).deletes.push(renderStatement(s, schema));
+    else (s.kind === 'set-flag' ? flags : updates).push(renderStatement(s, schema));
+  }
+  // Map order is the order of first mention, which a delete can make earlier than the table's first row
+  const written = statements.flatMap((s) => (s.kind === 'insert' ? [s.table] : []));
+  const order = [...[...tables.keys()].filter((t) => !written.includes(t)), ...new Set(written)];
+  const grouped: string[] = [];
+  for (const table of order) {
+    const { deletes, rows } = tables.get(table)!;
+    // A protected table's rows are written over, so deleting them first is left out
+    const upsert = LINT_PROTECTED.has(table) && rows.length > 0;
+    if (!upsert) grouped.push(...deletes);
+    if (rows.length > 0) grouped.push(renderInserts(table, columnsOf(schema, table), rows, upsert));
+  }
+  return [grouped, flags, updates];
+}
+
 /** The patch as a `.sql` file: a header, then the deletes, the flag updates, the other updates and the inserts. */
 export function renderPatch(
   statements: readonly PatchStatement[],
@@ -94,6 +132,9 @@ export function renderPatch(
     `-- Generated: ${meta.date}`,
   ];
 
+  const file = (blocks: string[][]): string => `${blocks.filter((b) => b.length > 0).map((b) => b.join('\n')).join('\n\n')}\n`;
+  if (meta.lint) return file([header, ...lintBlocks(statements, schema)]);
+
   const deletes: string[] = [];
   const flags: string[] = [];
   const updates: string[] = [];
@@ -103,8 +144,7 @@ export function renderPatch(
     block.push(renderStatement(s, schema));
   }
 
-  const blocks = [header, deletes, flags, updates, inserts].filter((b) => b.length > 0).map((b) => b.join('\n'));
-  return `${blocks.join('\n\n')}\n`;
+  return file([header, deletes, flags, updates, inserts]);
 }
 
 /** `<date>_<nn>_quest_<id>_<slug>.sql`, sortable and safe on every platform. */

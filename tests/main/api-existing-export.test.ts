@@ -41,12 +41,33 @@ describe('exporting an edited existing NPC', () => {
     const out: any = await api.exportProject();
     expect(out.ok).toBe(true);
     expect(out.value.sql).toMatch(/INSERT INTO `creature_template` \(.*\) VALUES \(1423,.*60/);
-    expect(out.value.sql).toMatch(/DELETE FROM `creature_loot_template` WHERE `Entry` = 1423/);
+    // The loot list is as it was read, so neither file touches it
+    expect(out.value.sql).not.toMatch(/creature_loot_template/);
     const revert = written.get(out.value.revertPath)!;
     expect(revert).toMatch(/DELETE FROM `creature_template` WHERE `entry` = 1423/);
     expect(revert).toMatch(/INSERT INTO `creature_template` \(.*\) VALUES \(1423,.*'Stormwind Guard'.*, 55, 56, /);
-    expect(revert).toMatch(/INSERT INTO `creature_loot_template` \(.*\) VALUES \(1423, 2589/);
+    expect(revert).not.toMatch(/creature_loot_template/);
     expect(out.value.warnings).toEqual([]);
+  });
+
+  it('exports nothing for a taken-over NPC that was not changed', async () => {
+    const { api, guard, written } = await setup();
+    await api.putProjectEntities({ npcs: [guard], objects: [], items: [] });
+    const out: any = await api.exportProject();
+    expect(out.ok).toBe(true);
+    expect(out.value.sql).not.toMatch(/creature_template|creature_loot_template/);
+    expect(written.get(out.value.revertPath)).not.toMatch(/creature_template/);
+  });
+
+  it('exports an edited NPC the way the repo lint wants: no DELETE on its template, a DELETE right before its other INSERTs', async () => {
+    const { api, guard, written } = await setup();
+    await api.putProjectEntities({ npcs: [{ ...guard, minLevel: 60, maxLevel: 60, displayId: 3168 }], objects: [], items: [] });
+    const out: any = await api.exportProject();
+    expect(out.value.sql).not.toMatch(/DELETE FROM `creature_template`/);
+    expect(out.value.sql).toMatch(/INSERT INTO `creature_template` \(.*\) VALUES \(1423,.*\) ON DUPLICATE KEY UPDATE .*;\n/);
+    expect(out.value.sql).toMatch(/DELETE FROM `creature_template_model` WHERE `CreatureID` = 1423 AND `Idx` = 0;\nINSERT INTO `creature_template_model`/);
+    // The revert is not linted, and still puts the original template back
+    expect(written.get(out.value.revertPath)).toMatch(/DELETE FROM `creature_template` WHERE `entry` = 1423/);
   });
 
   it('exports stock added to an existing NPC, filling the columns the editor does not set', async () => {
@@ -147,7 +168,7 @@ describe('exporting an edited existing NPC', () => {
       await api.putProjectEntities({ npcs: [{ ...read.value, gossipMenu: { menus } }], objects: [], items: [] });
       const out: any = await api.exportProject();
       expect(out.ok, JSON.stringify(out.error)).toBe(true);
-      expect(out.value.sql).toMatch(/INSERT INTO `gossip_menu_option` \(.*\) VALUES \(5000, 1, /);
+      expect(out.value.sql).toMatch(/INSERT INTO `gossip_menu_option` \(.*\) VALUES[\s\S]*\(5000, 1, /);
     });
 
     it('exports an NPC given its own copy of a shared menu, leaving the shared menu alone', async () => {
