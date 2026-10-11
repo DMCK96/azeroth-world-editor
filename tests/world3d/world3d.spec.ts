@@ -66,6 +66,59 @@ const state = async (page: Page): Promise<PageState> => (await page.evaluate('wi
 const open = (page: Page, directory: string, map: number): Promise<unknown> =>
   page.evaluate(`window.__open(${JSON.stringify(directory)}, ${map}, ${JSON.stringify(START)})`);
 
+/**
+ * Tilts the camera down by dragging empty ground (the left edge, where nothing stands). From the view's
+ * default angle the gizmo's other handles stand in front of its yellow square, so a press there never
+ * reaches it; from steeply above it is clear.
+ */
+async function lookDown(page: Page, box: Canvas): Promise<void> {
+  const [x, y] = [box.x + box.width * 0.15, box.y + box.height * 0.5];
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y + 160, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+}
+
+type Point3 = { x: number; y: number; z: number };
+type Canvas = { x: number; y: number; width: number; height: number };
+
+/**
+ * Where world points land on the canvas, for the camera as it is now (the view's field of view is 60
+ * degrees and its up is Z), and how big three's TransformControls draw a gizmo unit at a point: a quarter of
+ * 1.9 * tan(fov / 2) times its distance from the camera.
+ */
+async function viewOf(page: Page, box: Canvas): Promise<{ screen(p: Point3): { x: number; y: number }; unitAt(p: Point3): number }> {
+  const cam = (await page.evaluate('window.__camera()')) as { position: Point3; direction: Point3 };
+  const dir = cam.direction;
+  const across = Math.hypot(dir.y, dir.x);
+  const right = { x: dir.y / across, y: -dir.x / across, z: 0 };
+  const up = { x: right.y * dir.z - right.z * dir.y, y: right.z * dir.x - right.x * dir.z, z: right.x * dir.y - right.y * dir.x };
+  const dot = (a: Point3, b: Point3): number => a.x * b.x + a.y * b.y + a.z * b.z;
+  const half = Math.tan((60 * Math.PI) / 360);
+  const from = (p: Point3): Point3 => ({ x: p.x - cam.position.x, y: p.y - cam.position.y, z: p.z - cam.position.z });
+  return {
+    screen: (p) => {
+      const d = from(p);
+      const scale = box.height / 2 / half / dot(d, dir);
+      return { x: box.x + box.width / 2 + dot(d, right) * scale, y: box.y + box.height / 2 - dot(d, up) * scale };
+    },
+    unitAt: (p) => (Math.hypot(from(p).x, from(p).y, from(p).z) * 1.9 * half) / 4,
+  };
+}
+
+/**
+ * Where the move gizmo's yellow square (its XY handle, the only one that drops a thing onto the server
+ * floor) is on the canvas, for a gizmo standing at `origin`: three's TransformControls put it 0.15 gizmo
+ * units along world X and Y from the origin. The middle of the gizmo is a different handle, which moves a
+ * thing freely. Call it after `lookDown`.
+ */
+async function yellowSquare(page: Page, box: Canvas, origin: Point3): Promise<{ x: number; y: number }> {
+  const view = await viewOf(page, box);
+  const offset = 0.15 * view.unitAt(origin);
+  return view.screen({ x: origin.x + offset, y: origin.y + offset, z: origin.z });
+}
+
 async function openPage(page: Page): Promise<void> {
   await page.goto(PAGE);
   await page.waitForFunction('window.__loaded === true');
@@ -287,14 +340,16 @@ test('dragging the move gizmo moves the selected NPC and drops it on the server\
   await page.waitForFunction('window.__state.ready', null, { timeout: 45000 });
   await page.waitForTimeout(1000);
   const box = (await page.locator('canvas.world3d__canvas').boundingBox())!;
-  const [cx, cy] = [box.x + box.width / 2, box.y + box.height / 2];
-  await page.mouse.click(cx, cy);
+  await lookDown(page, box);
+  const npc = (await viewOf(page, box)).screen(SPOT);
+  await page.mouse.click(npc.x, npc.y);
   expect((await state(page)).selected).toMatchObject({ guid: 5 });
   await page.keyboard.press('KeyG');
-  // The gizmo's middle handle sits on the NPC's origin, which is the middle of the picture
-  await page.mouse.move(cx, cy);
+  // The yellow square is the handle that slides a thing along the ground and drops it on the server's floor
+  const grab = await yellowSquare(page, box, SPOT);
+  await page.mouse.move(grab.x, grab.y);
   await page.mouse.down();
-  await page.mouse.move(cx + 60, cy + 20, { steps: 10 });
+  await page.mouse.move(grab.x + 60, grab.y + 20, { steps: 10 });
   await page.mouse.up();
   await expect.poll(async () => (await state(page)).edits.length).toBe(1);
   const [edit] = (await state(page)).edits;
@@ -505,19 +560,22 @@ test('in Select mode a box picks two NPCs and the gizmo moves both as one gestur
   await page.evaluate(`window.__open('azeroth', 0, ${JSON.stringify(SPOT)})`);
   await page.waitForFunction('window.__state.ready', null, { timeout: 45000 });
   await page.waitForTimeout(1000);
-  await page.evaluate("window.__tool('select')");
   const box = (await page.locator('canvas.world3d__canvas').boundingBox())!;
-  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.3);
+  await lookDown(page, box);
+  await page.evaluate("window.__tool('select')");
+  const group = (await viewOf(page, box)).screen(SPOT);
+  await page.mouse.move(group.x - box.width * 0.2, group.y - box.height * 0.2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.7, { steps: 5 });
+  await page.mouse.move(group.x + box.width * 0.2, group.y + box.height * 0.2, { steps: 5 });
   await page.mouse.up();
   await expect.poll(async () => (await state(page)).selection).toMatchObject({ creatures: 2, objects: 0, points: 0 });
 
   await page.keyboard.press('KeyG');
-  const [cx, cy] = [box.x + box.width / 2, box.y + box.height / 2];
-  await page.mouse.move(cx, cy);
+  // The group's gizmo stands between the two; its yellow square slides both along the ground and drops them on the floor
+  const grab = await yellowSquare(page, box, SPOT);
+  await page.mouse.move(grab.x, grab.y);
   await page.mouse.down();
-  await page.mouse.move(cx + 60, cy + 20, { steps: 10 });
+  await page.mouse.move(grab.x + 60, grab.y + 20, { steps: 10 });
   await page.mouse.up();
   await expect.poll(async () => (await state(page)).edits.length).toBe(2);
   const edits = (await state(page)).edits;
