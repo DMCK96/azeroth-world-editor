@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createAppStore, type AppState } from './state/app-store';
 import { LoginScreen } from './views/LoginScreen';
 import { AppShell } from './views/AppShell';
+import { UpdateDialog } from './views/UpdateDialog';
 import { NamesProvider, localNamesOf } from './state/names';
 import { RewardTablesProvider } from './state/reward-tables';
 import { HistoryProvider } from './state/history-context';
@@ -16,6 +17,8 @@ export function App(): React.JSX.Element {
   const api = useMemo(() => searchingFresh(window.api, () => store.getState().flushEntities()), [store]);
   const screen = store((s) => s.screen);
   const connection = store((s) => s.connection);
+  const recoveries = store((s) => s.recoveries);
+  const recoveriesLoaded = store((s) => s.recoveriesLoaded);
   // The project's new NPCs, objects and quests, named in pickers before the main process has them.
   const entities = store((s) => s.entities);
   const nodes = store((s) => s.nodes);
@@ -64,6 +67,8 @@ export function App(): React.JSX.Element {
         </div>
       )}
       {(!inApp(screen) || leaving) && <LoginScreen store={store} leaving={leaving} onLeft={() => setLeaving(false)} />}
+      {/* Over the connect screen too, so it is the first thing seen; once in the app it waits behind the recovery offer */}
+      <UpdateDialog api={window.api} blocked={recoveries.length > 0 || (inApp(screen) && !recoveriesLoaded)} />
     </>
   );
 }
