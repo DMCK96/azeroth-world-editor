@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, protocol, safeStorage } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, protocol, safeStorage, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import { appendFile, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -37,6 +37,8 @@ import { createMainTaps, dialogNote } from './debug/main-taps';
 import { createDebugRecorder } from './debug/recorder';
 import { createRendererLink } from './debug/renderer-link';
 import { createDebugSettings } from './debug/settings';
+import { createUpdateController, type UpdateController } from './updates/controller';
+import { createUpdateSettings } from './updates/settings';
 
 /**
  * The Electron shell: it owns the window, the SQLite store and the IPC surface, and nothing else.
@@ -118,11 +120,13 @@ function buildDeps(
   client: GameClient,
   mcp: McpController,
   debug: DebugController,
+  updates: UpdateController,
 ): ApiDeps {
   return {
     store,
     mcp,
     debug,
+    updates,
     fetch: globalThis.fetch,
     onClientDir: (dir) => client.setDir(dir),
     clientStatus: () => client.status(),
@@ -408,7 +412,17 @@ void app.whenReady().then(() => {
   });
   debugNote = debug.note;
 
-  api = createApi(buildDeps(store, session, projects, startupProfileId, client, mcp, debug));
+  // Unpackaged builds never check, so development does not nag; AWE_UPDATE_CHECK=1 forces it for a manual try.
+  const updates = createUpdateController({
+    fetch: globalThis.fetch,
+    settings: createUpdateSettings(store),
+    version: app.getVersion(),
+    enabled: app.isPackaged || process.env['AWE_UPDATE_CHECK'] === '1',
+    openExternal: (url) => shell.openExternal(url),
+    warn: (message) => console.warn(`Updates: ${message}`),
+  });
+
+  api = createApi(buildDeps(store, session, projects, startupProfileId, client, mcp, debug, updates));
   registerIpc(api);
   app.on('will-quit', () => void mcp.stop());
   app.on('will-quit', () => void debug.stop());
