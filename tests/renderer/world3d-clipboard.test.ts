@@ -45,6 +45,13 @@ describe('the 3D view’s clipboard', () => {
     expect(laid[0]!.at.orientation).toBe(0.5);
   });
 
+  it('keeps each spawn’s height from the group’s centre, so a stacked group stays stacked', () => {
+    const at = (z: number) => ({ x: 0, y: 0, z, orientation: 0, rotation: null });
+    const entries = copySpawns([spawn(1, 0, 0, { placement: at(10) }), spawn(2, 0, 0, { placement: at(14) })]);
+    const laid = layoutAt(entries, { x: 0, y: 0, z: 100 }, 0);
+    expect(laid.map((l) => l.at.z)).toEqual([98, 102]);
+  });
+
   it('copies what each spawn is and how it faces, with no quest attached', () => {
     const [entry] = entriesOf([spawn(1, 0, 0, { own: true })]);
     expect(entry).not.toHaveProperty('questId');
