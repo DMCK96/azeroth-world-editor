@@ -3,7 +3,7 @@ import type { Placement } from '@core/world/layer';
 import { IDLE, type Movement } from '@core/world/movement';
 import type { EditPoint, SpawnEdit, SpawnRef } from './edits';
 import { Gizmo, placementOf, SNAP_PROBE, type GizmoChange, type GizmoMode, type GizmoTurns } from './scene/edit/Gizmo';
-import { DEFAULT_SNAP_KEY, snapKeyHeld, type SnapKey } from './scene/edit/snap-key';
+import { DEFAULT_SNAP_KEY, DEFAULT_SNAP_TOLERANCE, snapKeyHeld, type SnapKey } from './scene/edit/snap-key';
 import { legIndex, MIN_ROUTE_POINTS } from './scene/edit/route';
 import { afterRouteChange, EMPTY_SELECTION, type Selection } from './scene/edit/selection';
 import { FALLOFF_DEFAULT, falloffWeights, stepRadius, type Falloff } from './scene/edit/falloff';
@@ -22,8 +22,6 @@ import { centreOf, movedBy, sharedHeading, turnedAbout, turnQuaternion } from '.
 const RAISED = 0.5;
 /** The gizmo handle that slides a thing along the ground (the yellow square): the only one that follows the ground and drops to the server floor */
 const GROUND_AXIS = 'XY';
-/** How far the server's floor may be from the surface a thing was snapped to and still be taken: a farther one is another level, not that surface */
-export const SNAP_FLOOR_TOLERANCE = 1;
 const raisedKey = (kind: 'creature' | 'object', guid: number): string => `${kind}:${guid}`;
 export const NOT_SNAPPED = 'The height is from the drawn ground, not the server.';
 export const TOO_SHORT = 'A route keeps at least two points.';
@@ -83,6 +81,8 @@ export interface EditingOptions {
   onDrawing?(drawing: { guid: number; points: number } | null): void;
   /** The key that snaps a drag to the surface under it while held (the user's preference); Alt when absent */
   snapKey?(): SnapKey;
+  /** Yards the server's floor may be from a snapped surface and still be taken (the user's preference); a farther one is another level, not that surface */
+  snapTolerance?(): number;
 }
 
 /** A spawn being dragged, as it stood when the drag began */
@@ -628,7 +628,7 @@ export class Editor {
       if (moving && (snapped || (!lifted && change.axis === GROUND_AXIS)) && this.#options.floorZ) {
         const floorZ = this.#options.floorZ;
         // A snapped thing keeps the surface it was put on unless the server's floor is that same surface
-        const serverFloor = (floor: number | null, z: number): number | null => (floor !== null && snapped && Math.abs(floor - z) > SNAP_FLOOR_TOLERANCE ? null : floor);
+        const serverFloor = (floor: number | null, z: number): number | null => (floor !== null && snapped && Math.abs(floor - z) > (this.#options.snapTolerance?.() ?? DEFAULT_SNAP_TOLERANCE) ? null : floor);
         const asks = [
           ...spawns.map(async (s) => {
             if (this.#world.aboard?.(s.kind, s.guid)) return true;

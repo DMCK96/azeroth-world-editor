@@ -81,7 +81,7 @@ With something selected:
 - **G** moves it and **R** turns it, with the handles on the selection. In Select mode the bar's **Move** and **Rotate** buttons do the same and show which one is on. A moved spawn drops onto the server's floor where you let go.
 - On a shown route, click a point to pick it, **Shift**-click (Alt-click in Select mode) to add one, and **Delete** to remove the picked points. A route keeps at least two points. With NPCs or objects selected and no route point picked, **Delete** deletes them instead (see below).
 - **O** turns on **Falloff**: nearby route points follow a move, less the further they are. **[** and **]** change its radius.
-- Hold **Alt** while you drag any handle to snap NPCs, objects and path points onto the terrain or building floor under them. Without it, only the yellow square follows the ground. Choose another key (Ctrl or Shift) in Settings, under Preferences.
+- Hold **Alt** while you drag any handle to snap NPCs, objects and path points onto the terrain or building floor under them. Without it, only the yellow square follows the ground. Choose another key (Ctrl or Shift) in Settings, under Preferences, where you can also set the floor tolerance: how close the server's floor must be to the surface you snapped to before it replaces it (1 yard by default).
 - **Ctrl+Z** and **Ctrl+Y** undo and redo, one whole move or turn at a time. They're the project's undo, so they also reach changes made elsewhere; see [Undo and redo](/azeroth-world-editor/guides/undo/).
 
 When a route is walked by more than one spawn, the app asks before it changes it for all of them.

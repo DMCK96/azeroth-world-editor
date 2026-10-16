@@ -98,6 +98,8 @@ export interface World3DOptions {
   onDeleteSpawns?(): void;
   /** The key that, held during a drag, snaps what is dragged to the surface under it; asked at each drag, so a changed preference applies at once. Alt when absent. */
   snapKey?(): SnapKey;
+  /** Yards the server's floor may be from a snapped surface and still be taken; asked at each drag. 1 when absent. */
+  snapTolerance?(): number;
   /** Told which quest marker was clicked, or null when it was let go (the host's own `selectMarker` is not told back). */
   onMarkerSelect?(id: string | null): void;
   /** Told where a quest marker was dragged to, on the server's floor when it has one there. */
@@ -494,6 +496,7 @@ export function createWorld3D(options: World3DOptions): World3D {
       onMode: (mode) => options.onMode?.(mode),
       onDeleteSpawns: () => options.onDeleteSpawns?.(),
       snapKey: () => options.snapKey?.() ?? 'alt',
+      snapTolerance: () => options.snapTolerance?.() ?? 1,
       onDrawing: (drawing) => options.onDrawing?.(drawing),
     },
   );

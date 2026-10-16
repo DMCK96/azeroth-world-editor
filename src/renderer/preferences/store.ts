@@ -1,5 +1,5 @@
 // Local, per-machine preferences. Never part of the project file.
-import { DEFAULT_SNAP_KEY, SNAP_KEYS, type SnapKey } from '../world3d/scene/edit/snap-key';
+import { clampSnapTolerance, DEFAULT_SNAP_KEY, DEFAULT_SNAP_TOLERANCE, SNAP_KEYS, type SnapKey } from '../world3d/scene/edit/snap-key';
 export type DockSide = 'bottom' | 'right';
 
 export interface Preferences {
@@ -8,6 +8,8 @@ export interface Preferences {
   dockSize: { bottom: number; right: number };
   /** The key that, held while dragging in the 3D view, snaps to the surface under it */
   snapKey: SnapKey;
+  /** Yards the server's floor may differ from a snapped surface and still be taken */
+  snapTolerance: number;
 }
 
 export const PREFERENCES_KEY = 'acqc.preferences';
@@ -25,6 +27,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   dockSide: 'bottom',
   dockSize: { bottom: 0.4, right: 0.4 },
   snapKey: DEFAULT_SNAP_KEY,
+  snapTolerance: DEFAULT_SNAP_TOLERANCE,
 };
 
 const listeners = new Set<() => void>();
@@ -39,7 +42,7 @@ export function parsePreferences(raw: string | null): Preferences {
   let data: unknown;
   try { data = raw === null ? null : JSON.parse(raw); } catch { return DEFAULT_PREFERENCES; }
   if (typeof data !== 'object' || data === null || (data as { version?: unknown }).version !== VERSION) return DEFAULT_PREFERENCES;
-  const { dockSide, dockSize, snapKey } = data as { dockSide?: unknown; dockSize?: Partial<Record<DockSide, unknown>> | null; snapKey?: unknown };
+  const { dockSide, dockSize, snapKey, snapTolerance } = data as { dockSide?: unknown; dockSize?: Partial<Record<DockSide, unknown>> | null; snapKey?: unknown; snapTolerance?: unknown };
   return {
     dockSide: dockSide === 'bottom' || dockSide === 'right' ? dockSide : DEFAULT_PREFERENCES.dockSide,
     dockSize: {
@@ -47,6 +50,7 @@ export function parsePreferences(raw: string | null): Preferences {
       right: size(dockSize?.right, DEFAULT_PREFERENCES.dockSize.right),
     },
     snapKey: SNAP_KEYS.find((k) => k === snapKey) ?? DEFAULT_PREFERENCES.snapKey,
+    snapTolerance: clampSnapTolerance(snapTolerance),
   };
 }
 

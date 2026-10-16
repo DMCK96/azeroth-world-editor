@@ -50,7 +50,7 @@ const sel = (s: Partial<Selection>): Selection => ({ ...EMPTY_SELECTION, ...s })
 const line = (pathId: number, xs: number[], y = 0): Route => ({ pathId, own: false, entry: 1, points: xs.map((x) => ({ x, y, z: 0 })) });
 const key = (code: string) => new KeyboardEvent('keydown', { code });
 
-function setup(opts: { routes?: Record<number, Route>; floor?: number | null; aboard?: number[]; answers?: Record<number, boolean | Promise<boolean>> } = {}) {
+function setup(opts: { snapTolerance?: number; routes?: Record<number, Route>; floor?: number | null; aboard?: number[]; answers?: Record<number, boolean | Promise<boolean>> } = {}) {
   const spawns = new Map<string, THREE.Object3D>();
   const npc = (guid: number, x: number, y: number, facing = 0) => {
     const o = new THREE.Object3D();
@@ -104,6 +104,7 @@ function setup(opts: { routes?: Record<number, Route>; floor?: number | null; ab
   const deletes = vi.fn();
   const editor = new Editor(world, {
     onDeleteSpawns: deletes,
+    snapTolerance: opts.snapTolerance === undefined ? undefined : () => opts.snapTolerance!,
     onGesture: (g) => {
       gestures.push(g);
       edits.push(...g);
@@ -837,6 +838,14 @@ describe('snapping to a surface with the snap key held', () => {
     await lift(t, 'Z', true);
     expect(placed(t.edits)).toEqual([[1, 0, 0, 0]]);
     expect(t.notices.at(-1)).toBe(NOT_SNAPPED);
+  });
+
+  it('takes a floor as far away as the tolerance in the preferences allows', async () => {
+    const t = setup({ floor: 10, snapTolerance: 12 });
+    t.npc(1, 0, 0);
+    t.editor.setSelection(sel({ spawns: [{ kind: 'creature', guid: 1 }] }));
+    await lift(t, 'Z', true);
+    expect(placed(t.edits)).toEqual([[1, 0, 0, 10]]);
   });
 
   it('snaps route points too', async () => {

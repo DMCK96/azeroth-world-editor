@@ -21,7 +21,7 @@ describe('preferences store', () => {
 
   it('keeps valid fields and defaults the invalid ones one by one', () => {
     const raw = JSON.stringify({ version: 1, dockSide: 'sideways', dockSize: { bottom: 0.5, right: -3 } });
-    expect(parsePreferences(raw)).toEqual({ dockSide: 'bottom', dockSize: { bottom: 0.5, right: DEFAULT_PREFERENCES.dockSize.right }, snapKey: 'alt' });
+    expect(parsePreferences(raw)).toEqual({ dockSide: 'bottom', dockSize: { bottom: 0.5, right: DEFAULT_PREFERENCES.dockSize.right }, snapKey: 'alt', snapTolerance: 1 });
   });
 
   it('clamps sizes to 0.15..0.85', () => {
@@ -32,9 +32,9 @@ describe('preferences store', () => {
   it('writes versioned data, reads it back, and tells subscribers', () => {
     const heard = vi.fn();
     const stop = subscribePreferences(heard);
-    writePreferences({ dockSide: 'right', dockSize: { bottom: 0.3, right: 0.6 }, snapKey: 'ctrl' });
+    writePreferences({ dockSide: 'right', dockSize: { bottom: 0.3, right: 0.6 }, snapKey: 'ctrl', snapTolerance: 2.5 });
     expect(JSON.parse(localStorage.getItem(PREFERENCES_KEY)!).version).toBe(1);
-    expect(readPreferences()).toEqual({ dockSide: 'right', dockSize: { bottom: 0.3, right: 0.6 }, snapKey: 'ctrl' });
+    expect(readPreferences()).toEqual({ dockSide: 'right', dockSize: { bottom: 0.3, right: 0.6 }, snapKey: 'ctrl', snapTolerance: 2.5 });
     expect(heard).toHaveBeenCalledTimes(1);
     stop();
     writePreferences(DEFAULT_PREFERENCES);
@@ -56,5 +56,10 @@ describe('the snap key', () => {
     expect(DEFAULT_PREFERENCES.snapKey).toBe('alt');
     expect(parsePreferences(JSON.stringify({ version: 1, snapKey: 'shift' })).snapKey).toBe('shift');
     expect(parsePreferences(JSON.stringify({ version: 1, snapKey: 'f13' })).snapKey).toBe('alt');
+  });
+
+  it('keeps the snap tolerance between 0.1 and 10 yards, and 1 for anything else', () => {
+    const of = (snapTolerance: unknown) => parsePreferences(JSON.stringify({ version: 1, snapTolerance })).snapTolerance;
+    expect([of(2.5), of(0), of(50), of('far'), of(undefined)]).toEqual([2.5, 0.1, 10, 1, 1]);
   });
 });
