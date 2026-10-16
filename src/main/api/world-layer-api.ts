@@ -2,7 +2,7 @@ import { addSpawn, deleteSpawn, deletesOf, groupsOf, isAdded, isDeleted, revertD
 import { idsAbove } from '../../core/ids/free';
 import { groupDrifted } from '../world/groups-api';
 import { IDLE } from '../../core/world/movement';
-import { addedDrifted, countWalkers, deletedDrifted, readDeletedSpawn, routeWalkerName, movementDrifted, readMovement, readPlacement, readRespawn, readRoute, readSpawnEvents, readTemplateLook, readWalkerEntries, respawnDrifted, routeDrifted, spawnDrifted, spawnEventsDrifted } from '../world/world-api';
+import { addedStanding, countWalkers, deletedDrifted, readDeletedSpawn, routeWalkerName, movementDrifted, readMovement, readPlacement, readRespawn, readRoute, readSpawnEvents, readTemplateLook, readWalkerEntries, respawnDrifted, routeDrifted, spawnDrifted, spawnEventsDrifted } from '../world/world-api';
 import type { WorldLayerApi } from '../../shared/ipc';
 import type { Services } from './services';
 import { fail, run } from './errors';
@@ -267,7 +267,7 @@ export function createWorldLayerApi(s: Services): WorldLayerApi {
         const layer = deps.session.world.get();
         return [
           ...(await Promise.all(layer.spawns.map(async (s) => ({ ...s, type: 'spawn' as const, drifted: await spawnDrifted(db, s) })))),
-          ...(await Promise.all(layer.added.map(async (a) => ({ ...a, type: 'added' as const, drifted: await addedDrifted(db, a) })))),
+          ...(await Promise.all(layer.added.map(async (a) => ({ ...a, type: 'added' as const, ...(await addedStanding(db, a)) })))),
           ...(await Promise.all(layer.routes.map(async (r) => ({ ...r, type: 'route' as const, drifted: await routeDrifted(db, r) })))),
           ...(await Promise.all(
             movementsOf(layer).map(async (m) => ({ ...m, type: 'movement' as const, drifted: await movementDrifted(db, m, isAdded(layer, 'creature', m.guid)) })),

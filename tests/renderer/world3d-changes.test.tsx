@@ -153,3 +153,21 @@ describe('deleted spawns in the Project changes modal', () => {
     await waitFor(() => expect(onLayer).toHaveBeenCalledWith(layer));
   });
 });
+
+describe('placed spawns in the Project changes modal', () => {
+  const added = { type: 'added', kind: 'gameobject', guid: 5001, entry: 1731, name: 'Copper Vein', map: 0, drifted: false, inDatabase: false,
+    placement: { x: 1, y: 2, z: 3, orientation: 0, rotation: null }, look: {} };
+  const show = (over: object) => render(<ProjectChanges api={makeMockApi({ worldChanges: vi.fn(async () => okv([{ ...added, ...over }])) })} onLayer={vi.fn()} onClose={vi.fn()} />);
+
+  it('says a spawn the database already has is already there, and does not call it a clash', async () => {
+    show({ inDatabase: true });
+    expect(await screen.findByText('This object spawn is already in the database')).toBeTruthy();
+    expect(screen.queryByText('The database has a spawn with this id now')).toBeNull();
+  });
+
+  it('warns when a different spawn holds its id', async () => {
+    show({ drifted: true });
+    expect(await screen.findByText('The database has a spawn with this id now')).toBeTruthy();
+    expect(screen.queryByText(/already in the database/)).toBeNull();
+  });
+});
