@@ -15,6 +15,7 @@ import { QuestEditorModal } from './QuestEditorModal';
 import { ProjectDialog } from './ProjectDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { RecoveryDialog } from './RecoveryDialog';
+import { IdConflictDialog } from './IdConflictDialog';
 import './AppShell.css';
 
 /**
@@ -183,6 +184,7 @@ export function AppShell({ store }: { store: AppStore }): React.JSX.Element {
       {showProject && <ProjectDialog store={store} onClose={() => setShowProject(false)} />}
       {showSettings && <SettingsDialog store={store} onClose={() => setShowSettings(false)} />}
       <RecoveryDialog store={store} />
+      <IdConflictDialog store={store} />
     </div>
     </PlaceInWorldProvider>
     </ShowInWorldProvider>

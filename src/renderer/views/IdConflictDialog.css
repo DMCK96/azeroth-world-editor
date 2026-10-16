@@ -1,0 +1,5 @@
+.id-conflict__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6em;
+}
