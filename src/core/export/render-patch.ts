@@ -129,7 +129,7 @@ export function renderPatch(
     `-- Azeroth World Editor ${meta.toolVersion}`,
     typeof meta.questId === 'number' ? `-- Quest: ${meta.questId}` : `-- ${meta.label ?? 'Patch'}`,
     `-- Schema: ${schema.hash}`,
-    `-- Generated: ${meta.date}`,
+    `-- Generated: ${meta.date.replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3')}`,
   ];
 
   const file = (blocks: string[][]): string => `${blocks.filter((b) => b.length > 0).map((b) => b.join('\n')).join('\n\n')}\n`;
@@ -147,14 +147,22 @@ export function renderPatch(
   return file([header, deletes, flags, updates, inserts]);
 }
 
-/** `<date>_<nn>_quest_<id>_<slug>.sql`, sortable and safe on every platform. */
-export function patchFileName(args: { date: string; sequence: number; questId: number; title: string }): string {
-  const slug =
-    args.title
+/** A topic as a file name part: lower case, underscores between words, cut at a word */
+export function patchSlug(topic: string): string {
+  return (
+    topic
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_+|_+$/g, '')
       .slice(0, SLUG_MAX)
-      .replace(/_+$/, '') || 'untitled';
-  return `${args.date}_${String(args.sequence).padStart(2, '0')}_quest_${args.questId}_${slug}.sql`;
+      .replace(/_+$/, '') || 'untitled'
+  );
 }
+
+/** `rev_<yyyymmdd>_<nn>_<topic>.sql`, the name CoA's `pending_db_world` updates use; sortable and safe on every platform. */
+export function patchFileName(args: { date: string; sequence: number; topic: string }): string {
+  return `rev_${args.date}_${String(args.sequence).padStart(2, '0')}_${patchSlug(args.topic)}.sql`;
+}
+
+/** The revert's name beside a patch's: the same name before `.sql` */
+export const revertFileName = (patchName: string): string => patchName.replace(/\.sql$/, '_revert.sql');

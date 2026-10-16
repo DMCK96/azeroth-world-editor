@@ -87,7 +87,7 @@ test('an existing NPC is edited from the giver card and exported with its revert
   const written = (await changes.locator('.world-changes__exported p').nth(1).textContent())!.trim();
   const sql = readFileSync(written, 'utf8');
   expect(sql).toMatch(/INSERT INTO `creature_template` .*60/);
-  const revert = readFileSync(written.replace(/_project\.sql$/, '_project_revert.sql'), 'utf8');
+  const revert = readFileSync(written.replace(/\.sql$/, '_revert.sql'), 'utf8');
   // Stormwind Guard's stock row is 22-25: the revert puts the original max level back
   expect(revert).toMatch(/INSERT INTO `creature_template` /);
   expect(revert).toContain('25');

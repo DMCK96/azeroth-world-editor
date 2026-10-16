@@ -27,10 +27,11 @@ Then [test it in game](/azeroth-world-editor/guides/test-in-game/).
 
 ## The project patch
 
-The project's new [NPCs, objects and items](/azeroth-world-editor/guides/npcs-and-objects/), and the changes made in [the World](/azeroth-world-editor/guides/the-world/) to spawns already in the database (moved or placed spawns, changed routes, new paths and wander), are not part of any quest's patch. Open **Project changes** in the World's Layers card and choose **Export project patch**, or choose it after a quest's export. It writes two files to the same export folder, numbered per day:
+The project's new [NPCs, objects and items](/azeroth-world-editor/guides/npcs-and-objects/), and the changes made in [the World](/azeroth-world-editor/guides/the-world/) to spawns already in the database (moved or placed spawns, changed routes, new paths and wander), are not part of any quest's patch. Open **Project changes** in the World's Layers card and choose **Export project patch**, or choose it after a quest's export. It writes two files to the same export folder. Patches are named like the updates in CoA's `pending_db_world` folder, for example `rev_20261013_01_fel_commutation_portal.sql`, and the number counts every export of the day. A quest's patch is named after the quest's title.
 
-- `<date>_<nn>_project.sql`: the new NPCs, objects and items, and the changes.
-- `<date>_<nn>_project_revert.sql`: puts the database back as it was before them.
+
+- `rev_<yyyymmdd>_<nn>_<project name>.sql`: the new NPCs, objects and items, and the changes.
+- `rev_<yyyymmdd>_<nn>_<project name>_revert.sql`: puts the database back as it was before them.
 
 Run the project patch before the quests' patches. It replaces the world patch (`_world.sql`) of earlier versions.
 

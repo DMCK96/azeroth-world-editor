@@ -383,11 +383,11 @@ describe('preview, validate, export', () => {
     ok(await api.openQuest(60001));
     const e = ok(await api.exportQuest(60001));
     // Joined the way the API joins, so the test holds on Linux as well as Windows.
-    expect(e.path).toBe(join('C:\\out', '2026_09_21_00_quest_60001_wolves.sql'));
+    expect(e.path).toBe(join('C:\\out', 'rev_20260921_01_wolves.sql'));
     expect(files.get(e.path)).toBe(e.sql);
     expect(e.sql).toContain('DELETE FROM `quest_template` WHERE `ID` = 60001;');
     const second = ok(await api.exportQuest(60001));
-    expect(second.path).toBe(join('C:\\out', '2026_09_21_01_quest_60001_wolves.sql'));
+    expect(second.path).toBe(join('C:\\out', 'rev_20260921_02_wolves.sql'));
   });
 
   it('blocks export on validation errors and returns the issues', async () => {

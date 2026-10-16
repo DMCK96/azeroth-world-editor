@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { importFixture, forkDb } from '../helpers/fixtures';
 import { buildPatch } from '@core/export/build-patch';
-import { renderPatch, patchFileName } from '@core/export/render-patch';
+import { renderPatch, patchFileName, revertFileName } from '@core/export/render-patch';
 import { registry } from '@core/registry';
 import type { QuestAggregate } from '@core/model/aggregate';
 
@@ -176,9 +176,10 @@ describe('renderPatch and patchFileName', () => {
   });
 
   it('builds slugged file names', () => {
-    expect(patchFileName({ date: '2026_09_21', sequence: 0, questId: 60001, title: "Wolves of Elwynn!" }))
-      .toBe('2026_09_21_00_quest_60001_wolves_of_elwynn.sql');
-    expect(patchFileName({ date: '2026_09_21', sequence: 12, questId: 5, title: '' })).toBe('2026_09_21_12_quest_5_untitled.sql');
-    expect(patchFileName({ date: 'd', sequence: 1, questId: 1, title: 'x'.repeat(100) }).length).toBeLessThan(80);
+    expect(patchFileName({ date: '20261013', sequence: 1, topic: 'Fel Commutation Portal' })).toBe('rev_20261013_01_fel_commutation_portal.sql');
+    expect(patchFileName({ date: '20261013', sequence: 12, topic: "Wolves of Elwynn!" })).toBe('rev_20261013_12_wolves_of_elwynn.sql');
+    expect(patchFileName({ date: '20261013', sequence: 2, topic: '' })).toBe('rev_20261013_02_untitled.sql');
+    expect(patchFileName({ date: 'd', sequence: 1, topic: 'x'.repeat(100) }).length).toBeLessThan(80);
+    expect(revertFileName('rev_20261013_01_a.sql')).toBe('rev_20261013_01_a_revert.sql');
   });
 });

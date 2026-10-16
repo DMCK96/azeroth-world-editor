@@ -153,13 +153,13 @@ describe('the world layer through the API', () => {
     expect(((await api.exportProject()) as any).error.message).toBe('There are no NPCs, objects, items or world changes to export.');
     await api.worldMoveSpawn('creature', 80330, to(-9470));
     const out: any = await api.exportProject();
-    expect(out.value.applyPath).toMatch(/2026_10_03_00_project\.sql$/);
-    expect(out.value.revertPath).toMatch(/2026_10_03_00_project_revert\.sql$/);
+    expect(out.value.applyPath).toMatch(/rev_20261003_01_.*\.sql$/);
+    expect(out.value.revertPath).toMatch(/rev_20261003_01_.*_revert\.sql$/);
     expect(written.get(out.value.applyPath)).toMatch(/UPDATE `creature` SET .*`position_x` = -9470.*WHERE `guid` = 80330/s);
     expect(written.get(out.value.revertPath)).toMatch(/`position_x` = -9481.31/);
     expect(written.get(out.value.applyPath)).toContain('-- Project changes');
     const again: any = await api.exportProject();
-    expect(again.value.applyPath).toMatch(/2026_10_03_01_project\.sql$/);
+    expect(again.value.applyPath).toMatch(/rev_20261003_02_.*\.sql$/);
   });
 
   it('exports a point added in 3D with every column the database has, at its default', async () => {
@@ -275,7 +275,7 @@ describe('movement through the API', () => {
     expect(changes.value[0]).toMatchObject({ type: 'movement', addonRow: false, original: { type: 'path', pathId: 802 } });
     const out: any = await api.exportProject();
     expect(out.value.sql).toMatch(/INSERT INTO `creature_addon`[^;]*80331/);
-    const revert = [...written.entries()].find(([path]) => path.endsWith('_project_revert.sql'))![1];
+    const revert = [...written.entries()].find(([path]) => path.endsWith('_revert.sql'))![1];
     expect(revert).toMatch(/DELETE FROM `creature_addon` WHERE[^;]*80331/);
   });
 
@@ -421,7 +421,7 @@ describe('the spawns a quest uses', () => {
     await api.worldSetRoute(803310, [{ x: 1, y: 0, z: 0, rest: {} }, { x: 2, y: 0, z: 0, rest: {} }], { isNew: true });
     const out: any = await api.exportProject();
     expect(out.value.sql).toMatch(/INSERT INTO `creature_addon`[^;]*2410/);
-    const revert = [...written.entries()].find(([path]) => path.endsWith('_project_revert.sql'))![1];
+    const revert = [...written.entries()].find(([path]) => path.endsWith('_revert.sql'))![1];
     expect(revert).toMatch(/UPDATE `creature` SET `wander_distance` = 5, `MovementType` = 0 WHERE `guid` = 80331/);
   });
 

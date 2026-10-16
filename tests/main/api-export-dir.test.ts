@@ -31,7 +31,7 @@ async function exportFolder(deps: Partial<ApiDeps>, exportDir?: string): Promise
   const result: any = await api.exportQuest(60001);
   expect(result.ok).toBe(true);
   expect(written).toEqual([result.value.path]);
-  return result.value.path.slice(0, -'/2026_09_25_00_quest_60001_wolves.sql'.length);
+  return result.value.path.slice(0, -'/rev_20260925_01_wolves.sql'.length);
 }
 
 describe('export folder', () => {

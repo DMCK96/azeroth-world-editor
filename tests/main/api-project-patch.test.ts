@@ -38,13 +38,13 @@ async function questGivenBy(api: any, entry: number): Promise<any> {
 }
 
 describe('the project patch', () => {
-  it('writes every project NPC, with a revert that deletes it, to _project.sql', async () => {
+  it('writes every project NPC, with a revert that deletes it, to a rev_ file', async () => {
     const { api, written } = await setup();
     await api.putProjectEntities({ ...EMPTY_ENTITIES, npcs: [hela] });
     const out: any = await api.exportProject();
     expect(out.ok).toBe(true);
-    expect(out.value.applyPath).toMatch(/_00_project\.sql$/);
-    expect(out.value.revertPath).toMatch(/_00_project_revert\.sql$/);
+    expect(out.value.applyPath).toMatch(/rev_20261004_01_.*\.sql$/);
+    expect(out.value.revertPath).toMatch(/rev_20261004_01_.*_revert\.sql$/);
     expect(out.value.sql).toContain("'Hela'");
     expect(out.value.sql).toContain('AQC npc12000001 ');
     expect(written.get(out.value.revertPath)).toMatch(/DELETE FROM `creature_template` WHERE[\s\S]*12000001/);
@@ -125,32 +125,31 @@ describe('spawn events in the project patch', () => {
 });
 
 describe('numbering an export', () => {
-  const day = '2026_10_04';
+  const day = '20261004';
 
-  it('starts at 00 and takes one past the highest number in the folder', () => {
-    expect(nextExportSequence([], day, '_project')).toBe(0);
-    expect(nextExportSequence([`${day}_00_project.sql`, `${day}_02_project.sql`], day, '_project')).toBe(3);
+  it('starts at 01 and takes one past the highest number in the folder', () => {
+    expect(nextExportSequence([], day)).toBe(1);
+    expect(nextExportSequence([`rev_${day}_01_hela.sql`, `rev_${day}_03_hela.sql`], day)).toBe(4);
   });
 
   it('counts a revert file left behind, so an apply file moved away is not numbered again', () => {
-    expect(nextExportSequence([`${day}_00_project_revert.sql`], day, '_project')).toBe(1);
+    expect(nextExportSequence([`rev_${day}_01_hela_revert.sql`], day)).toBe(2);
   });
 
-  it('ignores other days and other kinds, and never goes below what the session already wrote', () => {
-    expect(nextExportSequence(['2026_10_03_05_project.sql', `${day}_07_quest_12_a.sql`], day, '_project')).toBe(0);
-    expect(nextExportSequence([], day, '_project', 4)).toBe(5);
-    expect(nextExportSequence([`${day}_01_quest_1_a.sql`], day, '_quest_12_')).toBe(0);
+  it('ignores other days and other files, and never goes below what the session already wrote', () => {
+    expect(nextExportSequence(['rev_20261003_05_hela.sql', `${day}_07_project.sql`], day)).toBe(1);
+    expect(nextExportSequence([], day, 4)).toBe(5);
   });
 
   it('never writes a second project export to the name of the first, even when the first was moved out', async () => {
     const { api, written } = await setup();
     await api.putProjectEntities({ ...EMPTY_ENTITIES, npcs: [hela] });
     const first: any = await api.exportProject();
-    expect(first.value.applyPath).toMatch(/_00_project\.sql$/);
+    expect(first.value.applyPath).toMatch(/rev_20261004_01_.*\.sql$/);
     written.delete(first.value.applyPath);
     const second: any = await api.exportProject();
-    expect(second.value.applyPath).toMatch(/_01_project\.sql$/);
-    expect(second.value.revertPath).toMatch(/_01_project_revert\.sql$/);
+    expect(second.value.applyPath).toMatch(/rev_20261004_02_.*\.sql$/);
+    expect(second.value.revertPath).toMatch(/rev_20261004_02_.*_revert\.sql$/);
     expect(written.has(first.value.revertPath)).toBe(true);
   });
 });
