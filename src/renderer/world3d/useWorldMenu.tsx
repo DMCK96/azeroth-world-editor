@@ -27,7 +27,7 @@ import { GroupDialog } from './GroupDialog';
 import { PlaceDialog, type Chosen } from './PlaceDialog';
 import { useHistorySteps } from '../state/history-context';
 import { AiLock } from '../components/AiLock';
-import { newSpawnGuids } from './spawn-guid';
+import { putInIdOrder } from './spawn-guid';
 import { getPreferencesSnapshot } from '../preferences/store';
 
 export const NO_LONGER_HERE = 'That spawn is no longer here';
@@ -218,24 +218,11 @@ export function useWorldMenu(deps: WorldMenuDeps): {
   /** Puts spawns down one after another, selects them, and makes them one undo step; how many went down */
   const putAll = async (puts: Put[], label?: string): Promise<number> => {
     const done: SpawnEdit[] = [];
-    // The project's own spawns get their guids together, before any is put down
-    const guids = new Map<Put, number>();
     const { api } = d.current;
-    if (api) {
-      for (const kind of ['creature', 'object'] as const) {
-        const own = puts.filter((p) => p.own && p.kind === kind);
-        const made = await newSpawnGuids(api, kind, own.length);
-        if ('error' in made) {
-          d.current.setNote(made.error);
-          continue;
-        }
-        own.forEach((p, i) => guids.set(p, made.guids[i]!));
-      }
-    }
+    if (!api) return 0;
     await step.current(async () => {
-      for (const put of puts) {
-        const edit = await putOne(put, guids.get(put));
-        if (!edit) continue;
+      const placed = await putInIdOrder(api, puts, putOne, d.current.setNote);
+      for (const { put, result: edit } of placed) {
         done.push(edit);
         if (put.respawnSecs !== undefined && put.respawnSecs !== 300) await d.current.send({ kind: 'respawn', spawn: edit.spawn, secs: put.respawnSecs });
         if (put.kind === 'creature' && put.wander !== undefined && put.wander > 0) await d.current.send({ kind: 'movement', spawn: edit.spawn, to: { type: 'wander', wander: put.wander, pathId: null } });
