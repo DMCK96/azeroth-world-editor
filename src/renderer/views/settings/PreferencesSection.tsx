@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import type { DebugStatus } from '@shared/ipc';
 import { usePreferences } from '../../preferences/usePreferences';
 import type { DockSide } from '../../preferences/store';
+import { clampSnapTolerance, MAX_SNAP_TOLERANCE, MIN_SNAP_TOLERANCE, SNAP_KEYS, type SnapKey } from '../../world3d/scene/edit/snap-key';
 import type { SettingsSectionProps } from './sections';
 
 const DOCK_CHOICES: readonly { side: DockSide; label: string }[] = [
   { side: 'bottom', label: 'Under the world' },
   { side: 'right', label: 'Beside the world' },
 ];
+
+const SNAP_LABELS: Record<SnapKey, string> = { alt: 'Alt', ctrl: 'Ctrl', shift: 'Shift' };
 
 /** Local preferences: each change applies at once, so there is no Save. */
 export function PreferencesSection(_props: SettingsSectionProps): React.JSX.Element {
@@ -43,6 +46,34 @@ export function PreferencesSection(_props: SettingsSectionProps): React.JSX.Elem
             {label}
           </label>
         ))}
+      </fieldset>
+
+      <h2 className="settings-prefs__heading">3D view</h2>
+      <fieldset className="settings-prefs__group">
+        <legend>Snap to surface while dragging</legend>
+        {SNAP_KEYS.map((key) => (
+          <label key={key} className="settings-prefs__choice">
+            <input type="radio" name="snap-key" checked={preferences.snapKey === key} onChange={() => update({ snapKey: key })} />
+            Hold {SNAP_LABELS[key]}
+          </label>
+        ))}
+        <p className="settings-prefs__note">
+          Hold this key while you drag the handles to put NPCs, objects and path points on the terrain or building floor under them.
+        </p>
+        <label className="settings-prefs__choice">
+          Floor tolerance (yards)
+          <input
+            type="number"
+            min={MIN_SNAP_TOLERANCE}
+            max={MAX_SNAP_TOLERANCE}
+            step={0.1}
+            value={preferences.snapTolerance}
+            onChange={(e) => update({ snapTolerance: clampSnapTolerance(e.target.valueAsNumber) })}
+          />
+        </label>
+        <p className="settings-prefs__note">
+          After a snap, the server's floor replaces the surface you snapped to only when it is this close. A floor farther away is another level, so the snapped height stays. Pasted objects within this distance of the floor also go down on it.
+        </p>
       </fieldset>
 
       <h2 className="settings-prefs__heading">Diagnostics</h2>

@@ -27,6 +27,7 @@ import type { Dock } from '@core/map/transport-docks';
 import type { RouteLine as RouteData } from '@core/map/transport-view';
 import { buildRouteLines, disposeRouteLines } from './scene/transport/RouteLine';
 import { frameStats } from '../debug/frame-stats';
+import type { SnapKey } from './scene/edit/snap-key';
 
 /**
  * The 3D world: the game's own terrain, props and models for one map, read from the client's
@@ -95,6 +96,10 @@ export interface World3DOptions {
   onShortcut?(code: 'KeyC' | 'KeyV' | 'KeyD'): boolean;
   /** Asked to delete the selected NPCs and objects: the Delete key with spawns selected and no route points picked. */
   onDeleteSpawns?(): void;
+  /** The key that, held during a drag, snaps what is dragged to the surface under it; asked at each drag, so a changed preference applies at once. Alt when absent. */
+  snapKey?(): SnapKey;
+  /** Yards the server's floor may be from a snapped surface and still be taken; asked at each drag. 1 when absent. */
+  snapTolerance?(): number;
   /** Told which quest marker was clicked, or null when it was let go (the host's own `selectMarker` is not told back). */
   onMarkerSelect?(id: string | null): void;
   /** Told where a quest marker was dragged to, on the server's floor when it has one there. */
@@ -490,6 +495,8 @@ export function createWorld3D(options: World3DOptions): World3D {
       onFalloff: (next) => options.onFalloff?.(next),
       onMode: (mode) => options.onMode?.(mode),
       onDeleteSpawns: () => options.onDeleteSpawns?.(),
+      snapKey: () => options.snapKey?.() ?? 'alt',
+      snapTolerance: () => options.snapTolerance?.() ?? 1,
       onDrawing: (drawing) => options.onDrawing?.(drawing),
     },
   );

@@ -15,6 +15,8 @@ const X = new THREE.Vector3(1, 0, 0);
 const TWO_PI = Math.PI * 2;
 /** How far above a point the ground is looked for, so a hill under it is still found */
 const GROUND_PROBE = 50;
+/** The same while snapping to a surface, where a drag may cross a whole cliff or building in one move */
+export const SNAP_PROBE = 500;
 
 /**
  * Where an object stands and how it is turned, as a spawn stores it: facing between 0 and 2π. An NPC
@@ -64,6 +66,8 @@ export class Gizmo {
   readonly #down = new THREE.Raycaster();
   /** A move along the ground keeps the handles' height above it, for things the user lifted (set before each drag) */
   keepHeight = false;
+  /** While the snap key is held, a move on any handle ends on the surface under it (set before each move) */
+  snap = false;
   #turns: GizmoTurns | null = null;
   #mode: GizmoMode = 'move';
   /** The spawn's whole rotation, which the proxy has only while rotating: it is turned about Z alone while moving */
@@ -156,12 +160,15 @@ export class Gizmo {
     this.#controls.showZ = true;
   }
 
-  /** A slide on the yellow plane handle keeps the stand-in on the drawn ground under it; the arrows move it freely */
+  /**
+   * A slide on the yellow plane handle keeps the stand-in on the drawn ground under it; the arrows move it
+   * freely, unless the snap key is held, when every handle puts it on the surface nearest where it was dragged
+   */
   #follow(axis: string | null): void {
-    if (this.#controls.mode === 'translate' && axis === 'XY') {
+    if (this.#controls.mode === 'translate' && (axis === 'XY' || this.snap)) {
       const { x, y, z } = this.#start.position;
-      const clearance = this.keepHeight ? Math.max(0, z - (this.groundAt(x, y, z) ?? z)) : 0;
-      const ground = this.groundAt(this.#proxy.position.x, this.#proxy.position.y, this.#proxy.position.z - clearance);
+      const clearance = !this.snap && this.keepHeight ? Math.max(0, z - (this.groundAt(x, y, z) ?? z)) : 0;
+      const ground = this.groundAt(this.#proxy.position.x, this.#proxy.position.y, this.#proxy.position.z - clearance, this.snap ? SNAP_PROBE : GROUND_PROBE);
       if (ground !== null) this.#proxy.position.z = ground + clearance;
     }
     this.#proxy.updateMatrixWorld(true);
@@ -180,8 +187,8 @@ export class Gizmo {
    * are several (a roof over a floor, a stair's levels) it is the one nearest the point's own height,
    * so a move stays on the floor it began on instead of jumping to the roof above.
    */
-  groundAt(x: number, y: number, z: number): number | null {
-    this.#down.set(new THREE.Vector3(x, y, z + GROUND_PROBE), new THREE.Vector3(0, 0, -1));
+  groundAt(x: number, y: number, z: number, probe = GROUND_PROBE): number | null {
+    this.#down.set(new THREE.Vector3(x, y, z + probe), new THREE.Vector3(0, 0, -1));
     const heights = this.#down.intersectObjects(this.#ground(), true).map((hit) => hit.point.z);
     return heights.length === 0 ? null : heights.reduce((best, h) => (Math.abs(h - z) < Math.abs(best - z) ? h : best));
   }
