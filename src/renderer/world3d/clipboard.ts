@@ -68,13 +68,13 @@ export function clearClipboard(): void {
 }
 
 /**
- * Where each entry lands with the group's anchor at `at`, on the map being viewed. Each is at the
- * paste point's height: the caller drops each onto the floor where it lands.
+ * Where each entry lands with the group's anchor at `at`, on the map being viewed. Each keeps its
+ * offset from the anchor in height too; the caller may snap the anchor to the floor, never each entry.
  */
 export function layoutAt(list: readonly ClipEntry[], at: { x: number; y: number; z: number }, map: number): { entry: ClipEntry; at: Placement; map: number }[] {
   return list.map((entry) => ({
     entry,
-    at: { x: at.x + entry.dx, y: at.y + entry.dy, z: at.z, orientation: entry.orientation, rotation: entry.rotation },
+    at: { x: at.x + entry.dx, y: at.y + entry.dy, z: at.z + entry.dz, orientation: entry.orientation, rotation: entry.rotation },
     map,
   }));
 }
