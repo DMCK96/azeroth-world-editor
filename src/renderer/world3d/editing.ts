@@ -22,6 +22,8 @@ import { centreOf, movedBy, sharedHeading, turnedAbout, turnQuaternion } from '.
 const RAISED = 0.5;
 /** The gizmo handle that slides a thing along the ground (the yellow square): the only one that follows the ground and drops to the server floor */
 const GROUND_AXIS = 'XY';
+/** How far the server's floor may be from the surface a thing was snapped to and still be taken: a farther one is another level, not that surface */
+export const SNAP_FLOOR_TOLERANCE = 1;
 const raisedKey = (kind: 'creature' | 'object', guid: number): string => `${kind}:${guid}`;
 export const NOT_SNAPPED = 'The height is from the drawn ground, not the server.';
 export const TOO_SHORT = 'A route keeps at least two points.';
@@ -625,19 +627,21 @@ export class Editor {
       // Dropped along the ground: onto the server's floor nearest where each thing was dragged, when it has one
       if (moving && (snapped || (!lifted && change.axis === GROUND_AXIS)) && this.#options.floorZ) {
         const floorZ = this.#options.floorZ;
+        // A snapped thing keeps the surface it was put on unless the server's floor is that same surface
+        const serverFloor = (floor: number | null, z: number): number | null => (floor !== null && snapped && Math.abs(floor - z) > SNAP_FLOOR_TOLERANCE ? null : floor);
         const asks = [
           ...spawns.map(async (s) => {
             if (this.#world.aboard?.(s.kind, s.guid)) return true;
             // One the user lifted keeps its height rather than dropping to the floor
             if (this.#raised.has(raisedKey(s.kind, s.guid))) return true;
-            const floor = await floorZ(s.object.position.x, s.object.position.y, s.object.position.z);
+            const floor = serverFloor(await floorZ(s.object.position.x, s.object.position.y, s.object.position.z), s.object.position.z);
             if (floor !== null) s.object.position.z = floor;
             return floor !== null;
           }),
           ...routes.flatMap((r) =>
             r.changed.map(async (i) => {
               const p = r.current[i]!;
-              const floor = await floorZ(p.x, p.y, p.z);
+              const floor = serverFloor(await floorZ(p.x, p.y, p.z), p.z);
               if (floor !== null) r.current[i] = { ...p, z: floor };
               return floor !== null;
             }),

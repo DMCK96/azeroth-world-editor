@@ -40,7 +40,7 @@ vi.mock('../../src/renderer/world3d/scene/edit/Gizmo', async (importActual) => {
   return { ...actual, Gizmo: FakeGizmo };
 });
 
-import { Editor, PICK_POINT_FIRST, TOO_SHORT, type EditingWorld } from '../../src/renderer/world3d/editing';
+import { Editor, NOT_SNAPPED, PICK_POINT_FIRST, TOO_SHORT, type EditingWorld } from '../../src/renderer/world3d/editing';
 import type { EditPoint, SpawnEdit } from '../../src/renderer/world3d/edits';
 import { EMPTY_SELECTION, type Selection } from '../../src/renderer/world3d/scene/edit/selection';
 import type { Falloff } from '../../src/renderer/world3d/scene/edit/falloff';
@@ -827,6 +827,16 @@ describe('snapping to a surface with the snap key held', () => {
     t.editor.setSelection(sel({ spawns: [{ kind: 'creature', guid: 1 }] }));
     await lift(t, 'Z', false);
     expect(placed(t.edits)).toEqual([[1, 0, 0, 5]]);
+  });
+
+  it('keeps the surface it was snapped to when the server has no floor there, only another level', async () => {
+    // The drawn surface under it is at 0; the server knows only a floor 10 yards away
+    const t = setup({ floor: 10 });
+    t.npc(1, 0, 0);
+    t.editor.setSelection(sel({ spawns: [{ kind: 'creature', guid: 1 }] }));
+    await lift(t, 'Z', true);
+    expect(placed(t.edits)).toEqual([[1, 0, 0, 0]]);
+    expect(t.notices.at(-1)).toBe(NOT_SNAPPED);
   });
 
   it('snaps route points too', async () => {
