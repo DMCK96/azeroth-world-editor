@@ -146,6 +146,24 @@ describe('the right-click menu in the 3D view', () => {
     field.remove();
   });
 
+  it('a pasted group keeps what was raised in it: the spawn on the floor lands on the floor, the one above it stays that high above', async () => {
+    const mapFloors = vi.fn(async () => okv({ floors: [10], ground: 10 }));
+    const { api, world } = await view({ mapFloors });
+    const onFloor = { ...guard, guid: 1, placement: { ...guard.placement, x: 10, y: 0, z: 10.2 } };
+    const stacked = { ...guard, guid: 2, placement: { ...guard.placement, x: 12, y: 0, z: 14 } };
+    world.selectedSpawns.mockReturnValue([onFloor, stacked]);
+    world.groundAt.mockReturnValue({ x: 50, y: 60, z: 30 });
+    act(() => { world.options.onShortcut('KeyC'); });
+    // The heights above the floor follow the copy once the floors answer
+    await waitFor(() => expect(mapFloors).toHaveBeenCalledTimes(2));
+    await act(async () => { await Promise.resolve(); });
+    act(() => { world.options.onShortcut('KeyV'); });
+    await waitFor(() => expect(api.worldAddSpawn).toHaveBeenCalledTimes(2));
+    const zs = (api.worldAddSpawn as any).mock.calls.map((c: any[]) => c[3].z).sort((x: number, y: number) => x - y);
+    expect(zs[0]).toBeCloseTo(10, 3);
+    expect(zs[1]).toBeCloseTo(14, 3);
+  });
+
   it('Copy coordinates writes the GM command, and says when the clipboard refuses', async () => {
     const writeText = vi.fn(async (_text: string) => {});
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });

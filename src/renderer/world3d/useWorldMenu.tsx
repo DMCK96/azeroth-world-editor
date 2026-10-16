@@ -5,13 +5,14 @@ import type { Dock } from '@core/map/transport-docks';
 import { IDLE, type Movement } from '@core/world/movement';
 import type { Role, RoleTarget } from '@core/modules/quest-roles';
 import type { World3D } from './world3d';
+import type { SpawnInfo } from './scene/spawn/SpawnManager';
 import type { EditPoint, SpawnEdit, SpawnRef } from './edits';
 import type { ProjectEntities } from '@core/entities/model';
 import { AI_WRITING, editsProject, lockEdits, type At, type MenuAction, type MenuEditorTab, type MenuGroup, type MenuSpawn, type MenuTarget, type QuestMenuInfo } from './menu/model';
 import { buildMenu, NEEDS_GROUND } from './menu/section';
 import { subjectOf } from './menu/subject';
 import { aboardVessel } from './frame-edit';
-import { clipEntries, copySpawns, duplicateOffset, entriesOf, layoutAt, pasteable, type ClipEntry, type ClipPoint } from './clipboard';
+import { clipEntries, duplicateOffset, entriesOf, keepEntries, layoutAt, pasteable, type ClipEntry, type ClipPoint } from './clipboard';
 import { placementAt } from './placing';
 import { WorldContextMenu } from './WorldContextMenu';
 import { WanderDialog } from './WanderDialog';
@@ -27,6 +28,7 @@ import { PlaceDialog, type Chosen } from './PlaceDialog';
 import { useHistorySteps } from '../state/history-context';
 import { AiLock } from '../components/AiLock';
 import { newSpawnGuid } from './spawn-guid';
+import { getPreferencesSnapshot } from '../preferences/store';
 
 export const NO_LONGER_HERE = 'That spawn is no longer here';
 export const COPIED_COORDINATES = 'Copied .go xyz to the clipboard';
@@ -171,6 +173,11 @@ export function useWorldMenu(deps: WorldMenuDeps): {
   };
 
   const floored = async (at: Placement): Promise<Placement> => ({ ...at, z: (await d.current.floorZ(at.x, at.y, at.z)) ?? at.z });
+  /** A pasted spawn's place: on the server's floor where it lands, and as high above it as it stood where it was copied */
+  const standing = async (at: Placement, clearance = 0): Promise<Placement> => {
+    const floor = await d.current.floorZ(at.x, at.y, at.z);
+    return floor === null ? at : { ...at, z: floor + clearance };
+  };
   const facingCamera = (at: At, kind: 'creature' | 'object'): Placement => placementAt(at, d.current.world.current?.camera().position ?? at, kind);
 
   /** Puts one spawn down: a quest's own goes to the quest, the rest to the world layer. The edit that did it, or null */
@@ -237,14 +244,30 @@ export function useWorldMenu(deps: WorldMenuDeps): {
     const { map } = d.current;
     const ok = pasteable(entries);
     if (ok.entries.length === 0) return;
-    const laid = await Promise.all(layoutAt(ok.entries, at, map).map(async (l) => ({ kind: l.entry.kind, entry: l.entry.entry, own: l.entry.own, at: await floored(l.at), respawnSecs: l.entry.respawnSecs, wander: l.entry.wander, spawnEvents: l.entry.spawnEvents, route: l.entry.route })));
+    const laid = await Promise.all(layoutAt(ok.entries, at, map).map(async (l) => ({ kind: l.entry.kind, entry: l.entry.entry, own: l.entry.own, at: await standing(l.at, l.entry.clearance), respawnSecs: l.entry.respawnSecs, wander: l.entry.wander, spawnEvents: l.entry.spawnEvents, route: l.entry.route })));
     await putAll(laid, laid.length === 1 ? `${verb} a spawn` : `${verb} ${laid.length} spawns`);
   };
 
+  /**
+   * Gives entries of spawns how high each stood above the server's floor, when that is more than the snap
+   * tolerance (the floor and a little above it count as standing on it)
+   */
+  const addClearance = async (entries: ClipEntry[], spawns: readonly SpawnInfo[]): Promise<ClipEntry[]> => {
+    const tolerance = getPreferencesSnapshot().snapTolerance;
+    await Promise.all(entries.map(async (entry, i) => {
+      const { x, y, z } = spawns[i]!.placement;
+      const floor = await d.current.floorZ(x, y, z);
+      if (floor !== null && z - floor > tolerance) entry.clearance = z - floor;
+    }));
+    return entries;
+  };
+
+  /** Copies at once, so a paste right after has it; the heights above the floor follow when the floors answer */
   const copy = (): void => {
     const spawns = d.current.world.current?.selectedSpawns() ?? [];
     if (spawns.length === 0) return;
-    copySpawns(spawns, (guid) => d.current.world.current?.routeOf(guid) ?? null);
+    const kept = keepEntries(entriesOf(spawns, (guid) => d.current.world.current?.routeOf(guid) ?? null));
+    void addClearance(kept, spawns);
     d.current.setNote(`Copied ${plural(spawns.length, 'spawn')}`);
   };
 
@@ -254,7 +277,7 @@ export function useWorldMenu(deps: WorldMenuDeps): {
     if (!world || spawns.length === 0) return;
     const mean = (pick: (p: Placement) => number): number => spawns.reduce((sum, s) => sum + pick(s.placement), 0) / spawns.length;
     const off = duplicateOffset(world.camera().direction);
-    await paste(entriesOf(spawns, (guid) => world.routeOf(guid)), { x: mean((p) => p.x) + off.x, y: mean((p) => p.y) + off.y, z: mean((p) => p.z) }, 'Duplicate');
+    await paste(await addClearance(entriesOf(spawns, (guid) => world.routeOf(guid)), spawns), { x: mean((p) => p.x) + off.x, y: mean((p) => p.y) + off.y, z: mean((p) => p.z) }, 'Duplicate');
   };
 
   /** Whether a spawn is still there to act on; says so when it is not */

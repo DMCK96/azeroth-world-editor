@@ -33,6 +33,8 @@ export interface ClipEntry {
   wander: number;
   /** An NPC's own game events; 'npc' follows its NPC (and an object's is always that) */
   spawnEvents: SpawnEvents;
+  /** Yards it stood above the server's floor when copied, if more than the snap tolerance: a paste puts it that high above the floor where it lands, so a group keeps what was stacked or raised in it */
+  clearance?: number;
   /** The path an NPC walks, which its copy walks too, as its own path; absent for one that does not walk */
   route?: ClipPoint[];
 }
@@ -72,6 +74,12 @@ export function entriesOf(spawns: readonly SpawnInfo[], routeOf?: (guid: number)
 /** Copies spawns, replacing what was copied before */
 export function copySpawns(spawns: readonly SpawnInfo[], routeOf?: Parameters<typeof entriesOf>[1]): ClipEntry[] {
   if (spawns.length > 0) entries = entriesOf(spawns, routeOf);
+  return entries;
+}
+
+/** Keeps entries made by `entriesOf` (once their clearances are known) as what was copied */
+export function keepEntries(list: ClipEntry[]): ClipEntry[] {
+  if (list.length > 0) entries = list;
   return entries;
 }
 
