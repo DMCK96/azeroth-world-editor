@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import type { Placement } from '@core/world/layer';
 import { IDLE, type Movement } from '@core/world/movement';
 import type { EditPoint, SpawnEdit, SpawnRef } from './edits';
-import { Gizmo, placementOf, type GizmoChange, type GizmoMode, type GizmoTurns } from './scene/edit/Gizmo';
+import { Gizmo, placementOf, SNAP_PROBE, type GizmoChange, type GizmoMode, type GizmoTurns } from './scene/edit/Gizmo';
+import { DEFAULT_SNAP_KEY, DEFAULT_SNAP_TOLERANCE, snapKeyHeld, type SnapKey } from './scene/edit/snap-key';
 import { legIndex, MIN_ROUTE_POINTS } from './scene/edit/route';
 import { afterRouteChange, EMPTY_SELECTION, type Selection } from './scene/edit/selection';
 import { FALLOFF_DEFAULT, falloffWeights, stepRadius, type Falloff } from './scene/edit/falloff';
@@ -78,6 +79,10 @@ export interface EditingOptions {
   onDeleteSpawns?(): void;
   /** Told when a new path starts or stops being drawn, and how many points it has */
   onDrawing?(drawing: { guid: number; points: number } | null): void;
+  /** The key that snaps a drag to the surface under it while held (the user's preference); Alt when absent */
+  snapKey?(): SnapKey;
+  /** Yards the server's floor may be from a snapped surface and still be taken (the user's preference); a farther one is another level, not that surface */
+  snapTolerance?(): number;
 }
 
 /** A spawn being dragged, as it stood when the drag began */
@@ -98,6 +103,8 @@ type Drag = {
   /** Each falloff point's share of a move, by `guid:index` */
   weights: Map<string, number>;
   last: GizmoChange | null;
+  /** Whether the snap key was held at the last move */
+  snapped: boolean;
 };
 
 const pointKey = (guid: number, index: number) => `${guid}:${index}`;
@@ -124,10 +131,21 @@ export class Editor {
   #locked = false;
   /** Where the gizmo was last put, so it is put again only when that changes */
   #attached: { at: THREE.Vector3; quaternion: THREE.Quaternion; turns: GizmoTurns } | null = null;
+  /** Whether the snap key is down, as the last pointer event said */
+  #snap = false;
+  readonly #track = (event: PointerEvent): void => {
+    this.#snap = snapKeyHeld(event, this.#options.snapKey?.() ?? DEFAULT_SNAP_KEY);
+    this.#gizmo.snap = this.#snap;
+  };
 
   constructor(world: EditingWorld, options: EditingOptions) {
     this.#world = world;
     this.#options = options;
+    // In the capture phase, so the key is known before the gizmo's own move handler runs
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pointermove', this.#track, true);
+      window.addEventListener('pointerdown', this.#track, true);
+    }
     this.#gizmo = new Gizmo(world.camera, world.dom, world.scene, world.ground, {
       started: () => this.#started(),
       moved: (change) => this.#moved(change),
@@ -459,6 +477,10 @@ export class Editor {
   }
 
   dispose(): void {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('pointermove', this.#track, true);
+      window.removeEventListener('pointerdown', this.#track, true);
+    }
     this.#gizmo.dispose();
   }
 
@@ -520,7 +542,7 @@ export class Editor {
     });
     const centre = this.#attached?.at.clone() ?? new THREE.Vector3();
     this.#gizmo.keepHeight = spawns.some((s) => this.#raised.has(raisedKey(s.kind, s.guid)));
-    this.#drag = { spawns, routes, centre, weights: this.#weights(routes), last: null };
+    this.#drag = { spawns, routes, centre, weights: this.#weights(routes), last: null, snapped: false };
   }
 
   /** The drag so far, applied to everything selected (found again by guid: a redraw may have replaced it) */
@@ -529,11 +551,14 @@ export class Editor {
     if (!drag) return;
     drag.last = change;
     const turning = this.#mode === 'rotate' && this.#attached?.turns !== 'none';
-    // Only the yellow plane handle follows the ground (a thing lifted on the Z arrow keeps its height above it); the arrows move freely
+    // Only the yellow plane handle follows the ground (a thing lifted on the Z arrow keeps its height above it); the arrows move
+    // freely, unless the snap key is held: then every handle puts the thing on the surface nearest where it was dragged
+    const snapping = this.#snap;
+    drag.snapped = snapping;
     const onGround = (p: At, start: At, keepHeight: boolean): At => {
-      if (turning || change.axis !== GROUND_AXIS) return p;
-      const clearance = keepHeight ? Math.max(0, start.z - (this.#gizmo.groundAt(start.x, start.y, start.z) ?? start.z)) : 0;
-      const ground = this.#gizmo.groundAt(p.x, p.y, p.z - clearance);
+      if (turning || (change.axis !== GROUND_AXIS && !snapping)) return p;
+      const clearance = keepHeight && !snapping ? Math.max(0, start.z - (this.#gizmo.groundAt(start.x, start.y, start.z) ?? start.z)) : 0;
+      const ground = this.#gizmo.groundAt(p.x, p.y, p.z - clearance, snapping ? SNAP_PROBE : undefined);
       return { ...p, z: ground === null ? p.z : ground + clearance };
     };
     const moved = (start: At, weight: number, keepHeight = false): At =>
@@ -565,7 +590,9 @@ export class Editor {
     const drag = this.#drag;
     const change = drag?.last;
     // A redraw since the last move may have put fresh objects back where they were stored
+    if (drag) this.#snap = drag.snapped;
     if (change) this.#moved(change);
+    const snapped = drag?.snapped ?? false;
     this.#drag = null;
     const attached = this.#attached;
     // A lone object tilted on its X or Y ring has turned, though not about Z
@@ -582,7 +609,10 @@ export class Editor {
       });
       const routes = drag.routes.map((r) => ({ ...r, changed: r.current.flatMap((p, i) => (p === r.before[i] ? [] : [i])) }));
       // A lift on the Z arrow is remembered, so later moves along the ground do not drop the thing back down
-      if (moving && lifted) {
+      if (moving && snapped) {
+        // Put on a surface, so nothing is held above it any more
+        for (const s of spawns) this.#raised.delete(raisedKey(s.kind, s.guid));
+      } else if (moving && lifted) {
         for (const s of spawns) {
           const { x, y, z } = s.object.position;
           const key = raisedKey(s.kind, s.guid);
@@ -595,21 +625,23 @@ export class Editor {
       for (const r of routes) if (r.changed.length > 0) this.#pend(r.guid, r.current);
 
       // Dropped along the ground: onto the server's floor nearest where each thing was dragged, when it has one
-      if (moving && !lifted && change.axis === GROUND_AXIS && this.#options.floorZ) {
+      if (moving && (snapped || (!lifted && change.axis === GROUND_AXIS)) && this.#options.floorZ) {
         const floorZ = this.#options.floorZ;
+        // A snapped thing keeps the surface it was put on unless the server's floor is that same surface
+        const serverFloor = (floor: number | null, z: number): number | null => (floor !== null && snapped && Math.abs(floor - z) > (this.#options.snapTolerance?.() ?? DEFAULT_SNAP_TOLERANCE) ? null : floor);
         const asks = [
           ...spawns.map(async (s) => {
             if (this.#world.aboard?.(s.kind, s.guid)) return true;
             // One the user lifted keeps its height rather than dropping to the floor
             if (this.#raised.has(raisedKey(s.kind, s.guid))) return true;
-            const floor = await floorZ(s.object.position.x, s.object.position.y, s.object.position.z);
+            const floor = serverFloor(await floorZ(s.object.position.x, s.object.position.y, s.object.position.z), s.object.position.z);
             if (floor !== null) s.object.position.z = floor;
             return floor !== null;
           }),
           ...routes.flatMap((r) =>
             r.changed.map(async (i) => {
               const p = r.current[i]!;
-              const floor = await floorZ(p.x, p.y, p.z);
+              const floor = serverFloor(await floorZ(p.x, p.y, p.z), p.z);
               if (floor !== null) r.current[i] = { ...p, z: floor };
               return floor !== null;
             }),

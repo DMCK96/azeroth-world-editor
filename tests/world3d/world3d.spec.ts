@@ -359,6 +359,45 @@ test('dragging the move gizmo moves the selected NPC and drops it on the server\
   expect((await state(page)).errors).toEqual([]);
 });
 
+/** Drags the red (X) arrow of the move gizmo on a lone NPC, with the snap key held or not; the one edit it sent */
+async function dragXArrow(page: Page, snapKey: boolean): Promise<any> {
+  await openPage(page);
+  const SPOT = { x: START.x + 60, y: START.y - 60, z: START.z };
+  await page.evaluate(`window.__spawns = { creatures: [
+    { guid: 5, entry: 1, name: 'Here', map: 0, x: ${SPOT.x}, y: ${SPOT.y}, z: ${SPOT.z}, orientation: 0, displayId: 0, scale: 4, wander: 0, path: null, pathId: 0, equipment: [0,0,0], own: false, event: null }
+  ], objects: [], capped: { creatures: false, objects: false } }`);
+  await page.evaluate(`window.__floorZ = ${SPOT.z + 0.25}`);
+  await page.evaluate(`window.__open('azeroth', 0, ${JSON.stringify(SPOT)})`);
+  await page.waitForFunction('window.__state.ready', null, { timeout: 45000 });
+  await page.waitForTimeout(1000);
+  const box = (await page.locator('canvas.world3d__canvas').boundingBox())!;
+  await lookDown(page, box);
+  const view = await viewOf(page, box);
+  const npc = view.screen(SPOT);
+  await page.mouse.click(npc.x, npc.y);
+  expect((await state(page)).selected).toMatchObject({ guid: 5 });
+  await page.keyboard.press('KeyG');
+  const grab = view.screen({ x: SPOT.x + 0.7 * view.unitAt(SPOT), y: SPOT.y, z: SPOT.z });
+  await page.mouse.move(grab.x, grab.y);
+  if (snapKey) await page.keyboard.down('Alt');
+  await page.mouse.down();
+  await page.mouse.move(grab.x + 60, grab.y, { steps: 10 });
+  await page.mouse.up();
+  if (snapKey) await page.keyboard.up('Alt');
+  await expect.poll(async () => (await state(page)).edits.length).toBe(1);
+  const [edit] = (await state(page)).edits;
+  expect(Math.hypot(edit.to.x - SPOT.x, edit.to.y - SPOT.y)).toBeGreaterThan(1);
+  expect((await state(page)).errors).toEqual([]);
+  return { edit, spotZ: SPOT.z };
+}
+
+test('an arrow of the gizmo moves an NPC freely, but with the snap key held it lands on the server floor', async ({ page }) => {
+  const free = await dragXArrow(page, false);
+  expect(free.edit.to.z).toBeCloseTo(free.spotZ, 3);
+  const snapped = await dragXArrow(page, true);
+  expect(snapped.edit.to.z).toBeCloseTo(snapped.spotZ + 0.25, 3);
+});
+
 test('Shift-click on the selected NPC\'s route inserts a point there; Ctrl+Z is left to the app', async ({ page }) => {
   await openPage(page);
   const SPOT = { x: START.x + 60, y: START.y - 60, z: START.z };

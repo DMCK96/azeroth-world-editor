@@ -40,7 +40,7 @@ vi.mock('../../src/renderer/world3d/scene/edit/Gizmo', async (importActual) => {
   return { ...actual, Gizmo: FakeGizmo };
 });
 
-import { Editor, PICK_POINT_FIRST, TOO_SHORT, type EditingWorld } from '../../src/renderer/world3d/editing';
+import { Editor, NOT_SNAPPED, PICK_POINT_FIRST, TOO_SHORT, type EditingWorld } from '../../src/renderer/world3d/editing';
 import type { EditPoint, SpawnEdit } from '../../src/renderer/world3d/edits';
 import { EMPTY_SELECTION, type Selection } from '../../src/renderer/world3d/scene/edit/selection';
 import type { Falloff } from '../../src/renderer/world3d/scene/edit/falloff';
@@ -50,7 +50,7 @@ const sel = (s: Partial<Selection>): Selection => ({ ...EMPTY_SELECTION, ...s })
 const line = (pathId: number, xs: number[], y = 0): Route => ({ pathId, own: false, entry: 1, points: xs.map((x) => ({ x, y, z: 0 })) });
 const key = (code: string) => new KeyboardEvent('keydown', { code });
 
-function setup(opts: { routes?: Record<number, Route>; floor?: number | null; aboard?: number[]; answers?: Record<number, boolean | Promise<boolean>> } = {}) {
+function setup(opts: { snapTolerance?: number; routes?: Record<number, Route>; floor?: number | null; aboard?: number[]; answers?: Record<number, boolean | Promise<boolean>> } = {}) {
   const spawns = new Map<string, THREE.Object3D>();
   const npc = (guid: number, x: number, y: number, facing = 0) => {
     const o = new THREE.Object3D();
@@ -104,6 +104,7 @@ function setup(opts: { routes?: Record<number, Route>; floor?: number | null; ab
   const deletes = vi.fn();
   const editor = new Editor(world, {
     onDeleteSpawns: deletes,
+    snapTolerance: opts.snapTolerance === undefined ? undefined : () => opts.snapTolerance!,
     onGesture: (g) => {
       gestures.push(g);
       edits.push(...g);
@@ -793,5 +794,76 @@ describe('a gesture on its way', () => {
     gizmo.events.started();
     await gizmo.events.ended(false);
     expect(held).not.toHaveBeenCalled();
+  });
+});
+
+describe('snapping to a surface with the snap key held', () => {
+  const lift = async (t: ReturnType<typeof setup>, axis: string, held: boolean, key = {}) => {
+    window.dispatchEvent(new PointerEvent('pointermove', { altKey: held, ...key }));
+    t.editor.update();
+    t.gizmo.events.started();
+    t.gizmo.events.moved({ ...t.change([0, 0, 5]), axis });
+    await t.gizmo.events.ended(axis === 'Z');
+  };
+
+  it('puts a thing lifted on the Z arrow on the floor under it', async () => {
+    const t = setup({ floor: 1 });
+    t.npc(1, 0, 0);
+    t.editor.setSelection(sel({ spawns: [{ kind: 'creature', guid: 1 }] }));
+    await lift(t, 'Z', true);
+    expect(placed(t.edits)).toEqual([[1, 0, 0, 1]]);
+  });
+
+  it('works on the arrows along the ground too, not only on the yellow square', async () => {
+    const t = setup({ floor: 1 });
+    t.npc(1, 0, 0);
+    t.editor.setSelection(sel({ spawns: [{ kind: 'creature', guid: 1 }] }));
+    await lift(t, 'X', true);
+    expect(placed(t.edits)).toEqual([[1, 0, 0, 1]]);
+  });
+
+  it('without the key a lift on the Z arrow stays where it was put', async () => {
+    const t = setup({ floor: 1 });
+    t.npc(1, 0, 0);
+    t.editor.setSelection(sel({ spawns: [{ kind: 'creature', guid: 1 }] }));
+    await lift(t, 'Z', false);
+    expect(placed(t.edits)).toEqual([[1, 0, 0, 5]]);
+  });
+
+  it('keeps the surface it was snapped to when the server has no floor there, only another level', async () => {
+    // The drawn surface under it is at 0; the server knows only a floor 10 yards away
+    const t = setup({ floor: 10 });
+    t.npc(1, 0, 0);
+    t.editor.setSelection(sel({ spawns: [{ kind: 'creature', guid: 1 }] }));
+    await lift(t, 'Z', true);
+    expect(placed(t.edits)).toEqual([[1, 0, 0, 0]]);
+    expect(t.notices.at(-1)).toBe(NOT_SNAPPED);
+  });
+
+  it('takes a floor as far away as the tolerance in the preferences allows', async () => {
+    const t = setup({ floor: 10, snapTolerance: 12 });
+    t.npc(1, 0, 0);
+    t.editor.setSelection(sel({ spawns: [{ kind: 'creature', guid: 1 }] }));
+    await lift(t, 'Z', true);
+    expect(placed(t.edits)).toEqual([[1, 0, 0, 10]]);
+  });
+
+  it('snaps route points too', async () => {
+    const t = setup({ routes: { 7: line(50, [0, 10]) } });
+    t.editor.setSelection(sel({ points: [{ guid: 7, index: 0 }] }));
+    window.dispatchEvent(new PointerEvent('pointermove', { altKey: true }));
+    t.editor.update();
+    t.gizmo.events.started();
+    t.gizmo.events.moved({ ...t.change([0, 0, 5]), axis: 'Z' });
+    expect(t.previews.at(-1)![1][0]!.z).toBe(0);
+  });
+
+  it('follows the chosen key', async () => {
+    const t = setup({ floor: 1 });
+    t.npc(1, 0, 0);
+    t.editor.setSelection(sel({ spawns: [{ kind: 'creature', guid: 1 }] }));
+    // Alt is the default: Shift alone does nothing
+    await lift(t, 'Z', false, { shiftKey: true });
+    expect(placed(t.edits)).toEqual([[1, 0, 0, 5]]);
   });
 });

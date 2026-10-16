@@ -38,6 +38,7 @@ import { newSpawnGuid } from './spawn-guid';
 import type { WorldMarker } from './quest-markers';
 import { useMarkerView, type MarkerFocus } from './useMarkerView';
 import { MarkerCard } from './MarkerCard';
+import { getPreferencesSnapshot } from '../preferences/store';
 
 /** The camera's controls, as the help in the corner lists them. */
 const CONTROLS: [string, string][] = [
@@ -54,6 +55,7 @@ const CONTROLS: [string, string][] = [
   ['[ / ]', 'Falloff radius'],
   ['Place…', 'Choose an existing NPC or object, then click the ground'],
   ['Drag from the Quests dock', 'Drop the open quest’s NPC or object on the ground to place it'],
+  ['Hold the snap key while dragging', 'Put what you drag on the terrain or floor under it (Alt; change the key and the floor tolerance in Preferences)'],
   ['Delete', 'Delete the selected NPCs or objects, or the selected route points'],
   ['Ctrl+Z / Ctrl+Y', 'Undo and redo'],
   ['Right-click', 'Menu: place, copy, paste, paths, quest'],
@@ -696,6 +698,8 @@ function WorldStage({
               if (!drawing && patrollingRef.current?.stage === 'drawing') endPatrolRef.current();
             },
             onShortcut: (code) => live && menuRef.current.shortcut(code),
+            snapKey: () => getPreferencesSnapshot().snapKey,
+            snapTolerance: () => getPreferencesSnapshot().snapTolerance,
             onDeleteSpawns: () => {
               if (live) void menuRef.current.deleteSelected();
             },
