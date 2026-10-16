@@ -45,6 +45,8 @@ export const API_METHODS = [
   'deleteEntity',
   'readExistingEntity',
   'existingDrift',
+  'idConflicts',
+  'resolveIdConflicts',
   'worldLayer',
   'worldMoveSpawn',
   'worldAddSpawn',

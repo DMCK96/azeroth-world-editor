@@ -1,4 +1,5 @@
 import { rowsOrNone } from '../../core/links/context';
+import { idsAbove } from '../../core/ids/free';
 import { maxObjectMenu } from '../../core/db/object-menus';
 import { GOSSIP_TEXT_LIMIT } from '../../core/entities/gossip-tree';
 import type { QuestAggregate } from '../../core/model/aggregate';
@@ -91,8 +92,7 @@ export function createEntitiesApi(s: Services): EntitiesApi {
           : kind === 'gossipText' ? npcs.flatMap((n) => (n.gossipMenu?.menus ?? []).map((m) => m.textId))
           : kind === 'page' ? [...objects, ...items].flatMap((o) => o.pages.map((p) => p.id))
           : [...objects.flatMap((o) => o.spawns.map((s) => s.guid)), ...placedGuids('gameobject')];
-        const base = Math.max(dbMax, ...used, 0);
-        return Array.from({ length: count }, (_, i) => base + i + 1);
+        return idsAbove(dbMax, used, count);
       }),
 
     entityTemplate: (kind, entry) =>

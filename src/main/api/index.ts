@@ -14,6 +14,7 @@ import { createDebugApi } from './debug-api';
 import { createUpdatesApi } from './updates-api';
 import { createLoreApi } from './lore-api';
 import { createAuthoringApi } from './authoring-api';
+import { createIdsApi } from './ids-api';
 import type { ApiDeps } from './deps';
 import { createServices } from './services';
 
@@ -49,5 +50,6 @@ export function createApi(deps: ApiDeps): Api {
     ...createUpdatesApi(deps),
     ...createLoreApi(services, deps),
     ...createAuthoringApi(services),
+    ...createIdsApi(services),
   };
 }
