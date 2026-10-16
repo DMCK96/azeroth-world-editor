@@ -1,10 +1,13 @@
 // Local, per-machine preferences. Never part of the project file.
+import { DEFAULT_SNAP_KEY, SNAP_KEYS, type SnapKey } from '../world3d/scene/edit/snap-key';
 export type DockSide = 'bottom' | 'right';
 
 export interface Preferences {
   dockSide: DockSide;
   /** Fractions of the window, 0.15 to 0.85. */
   dockSize: { bottom: number; right: number };
+  /** The key that, held while dragging in the 3D view, snaps to the surface under it */
+  snapKey: SnapKey;
 }
 
 export const PREFERENCES_KEY = 'acqc.preferences';
@@ -21,6 +24,7 @@ export function clampDockSize(n: number): number {
 export const DEFAULT_PREFERENCES: Preferences = {
   dockSide: 'bottom',
   dockSize: { bottom: 0.4, right: 0.4 },
+  snapKey: DEFAULT_SNAP_KEY,
 };
 
 const listeners = new Set<() => void>();
@@ -35,13 +39,14 @@ export function parsePreferences(raw: string | null): Preferences {
   let data: unknown;
   try { data = raw === null ? null : JSON.parse(raw); } catch { return DEFAULT_PREFERENCES; }
   if (typeof data !== 'object' || data === null || (data as { version?: unknown }).version !== VERSION) return DEFAULT_PREFERENCES;
-  const { dockSide, dockSize } = data as { dockSide?: unknown; dockSize?: Partial<Record<DockSide, unknown>> | null };
+  const { dockSide, dockSize, snapKey } = data as { dockSide?: unknown; dockSize?: Partial<Record<DockSide, unknown>> | null; snapKey?: unknown };
   return {
     dockSide: dockSide === 'bottom' || dockSide === 'right' ? dockSide : DEFAULT_PREFERENCES.dockSide,
     dockSize: {
       bottom: size(dockSize?.bottom, DEFAULT_PREFERENCES.dockSize.bottom),
       right: size(dockSize?.right, DEFAULT_PREFERENCES.dockSize.right),
     },
+    snapKey: SNAP_KEYS.find((k) => k === snapKey) ?? DEFAULT_PREFERENCES.snapKey,
   };
 }
 

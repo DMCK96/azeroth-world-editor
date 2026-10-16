@@ -795,3 +795,56 @@ describe('a gesture on its way', () => {
     expect(held).not.toHaveBeenCalled();
   });
 });
+
+describe('snapping to a surface with the snap key held', () => {
+  const lift = async (t: ReturnType<typeof setup>, axis: string, held: boolean, key = {}) => {
+    window.dispatchEvent(new PointerEvent('pointermove', { altKey: held, ...key }));
+    t.editor.update();
+    t.gizmo.events.started();
+    t.gizmo.events.moved({ ...t.change([0, 0, 5]), axis });
+    await t.gizmo.events.ended(axis === 'Z');
+  };
+
+  it('puts a thing lifted on the Z arrow on the floor under it', async () => {
+    const t = setup({ floor: 1 });
+    t.npc(1, 0, 0);
+    t.editor.setSelection(sel({ spawns: [{ kind: 'creature', guid: 1 }] }));
+    await lift(t, 'Z', true);
+    expect(placed(t.edits)).toEqual([[1, 0, 0, 1]]);
+  });
+
+  it('works on the arrows along the ground too, not only on the yellow square', async () => {
+    const t = setup({ floor: 1 });
+    t.npc(1, 0, 0);
+    t.editor.setSelection(sel({ spawns: [{ kind: 'creature', guid: 1 }] }));
+    await lift(t, 'X', true);
+    expect(placed(t.edits)).toEqual([[1, 0, 0, 1]]);
+  });
+
+  it('without the key a lift on the Z arrow stays where it was put', async () => {
+    const t = setup({ floor: 1 });
+    t.npc(1, 0, 0);
+    t.editor.setSelection(sel({ spawns: [{ kind: 'creature', guid: 1 }] }));
+    await lift(t, 'Z', false);
+    expect(placed(t.edits)).toEqual([[1, 0, 0, 5]]);
+  });
+
+  it('snaps route points too', async () => {
+    const t = setup({ routes: { 7: line(50, [0, 10]) } });
+    t.editor.setSelection(sel({ points: [{ guid: 7, index: 0 }] }));
+    window.dispatchEvent(new PointerEvent('pointermove', { altKey: true }));
+    t.editor.update();
+    t.gizmo.events.started();
+    t.gizmo.events.moved({ ...t.change([0, 0, 5]), axis: 'Z' });
+    expect(t.previews.at(-1)![1][0]!.z).toBe(0);
+  });
+
+  it('follows the chosen key', async () => {
+    const t = setup({ floor: 1 });
+    t.npc(1, 0, 0);
+    t.editor.setSelection(sel({ spawns: [{ kind: 'creature', guid: 1 }] }));
+    // Alt is the default: Shift alone does nothing
+    await lift(t, 'Z', false, { shiftKey: true });
+    expect(placed(t.edits)).toEqual([[1, 0, 0, 5]]);
+  });
+});
