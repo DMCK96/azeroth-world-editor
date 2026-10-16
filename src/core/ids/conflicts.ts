@@ -3,9 +3,12 @@ import { claimKey, type IdConflict, type IdKind, type IdRename, type ProjectIds 
 
 /**
  * The project's ids that the database now holds something different at, over any kinds. A kind that
- * fails is skipped so one broken table never hides the others, or blocks opening a project.
+ * fails is skipped so one broken table never hides the others, or blocks opening a project; `onSkipped`
+ * hears which kind and why, so a broken one is not invisible.
  */
-export async function findConflicts(db: WorldDb, project: ProjectIds, kinds: readonly IdKind[]): Promise<IdConflict[]> {
+export async function findConflicts(
+  db: WorldDb, project: ProjectIds, kinds: readonly IdKind[], onSkipped?: (kind: string, error: unknown) => void,
+): Promise<IdConflict[]> {
   const found: IdConflict[] = [];
   for (const kind of kinds) {
     try {
@@ -22,10 +25,11 @@ export async function findConflicts(db: WorldDb, project: ProjectIds, kinds: rea
         const database = holders.get(claimKey(claim.scope, claim.id));
         if (!database || kind.isSameThing(claim, database)) continue;
         const { scope, id, ...mine } = claim;
-        found.push({ kind: kind.key, scope, scopeLabel: kind.scopeLabel(scope), id, mine, database });
+        found.push({ kind: kind.key, noun: kind.noun, scope, scopeLabel: kind.scopeLabel(scope), id, mine, database });
       }
-    } catch {
+    } catch (error) {
       // This kind cannot be checked now; the others still are
+      onSkipped?.(kind.key, error);
     }
   }
   const order = (key: string): number => kinds.findIndex((k) => k.key === key);

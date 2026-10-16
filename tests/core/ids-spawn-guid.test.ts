@@ -101,7 +101,7 @@ describe('rename', () => {
   });
 
   it('renames an object spawn and only an object group member', () => {
-    const groups = [{ id: 1, name: 'G', map: 0, maxActive: 1, members: [
+    const groups = [{ id: 1, name: 'G', map: 0, maxActive: 1, event: null, origin: { kind: 'new' }, members: [
       { type: 'spawn', kind: 'object', guid: 100, entry: 2, chance: 0 },
       { type: 'spawn', kind: 'npc', guid: 100, entry: 1, chance: 0 },
     ] }] as never;
@@ -117,7 +117,7 @@ describe('rename', () => {
       added: [added('creature', 100, 1423)],
       movements: [{ guid: 100 }, { guid: 300 }],
       spawnEvents: [{ guid: 100 }],
-      groups: [{ id: 1, name: 'G', map: 0, maxActive: 1, members: [{ type: 'spawn', kind: 'npc', guid: 100, entry: 1423, chance: 0 }] }],
+      groups: [{ id: 1, name: 'G', map: 0, maxActive: 1, event: null, origin: { kind: 'new' }, members: [{ type: 'spawn', kind: 'npc', guid: 100, entry: 1423, chance: 0 }] }],
     } as never;
     const next = spawnGuidKind.rename(make(EMPTY_ENTITIES, world), 'creature', 100, 900);
     expect(next.world.added[0]!.guid).toBe(900);

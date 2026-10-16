@@ -53,4 +53,6 @@ The spawns you add get ids of their own. When you open a project, or connect to 
 - **Renumber** gives your spawns free ids, everywhere the project uses them, as one step you can undo.
 - **Leave as is** changes nothing. You are asked again the next time you open the project or connect.
 
-A spawn that your own exported patch already put into a dev database is not a clash. The app treats a database spawn as yours when it has the same NPC or object, the same map and stands within half a yard.
+A spawn that your own exported patch already put into a dev database is not a clash. The app treats a database spawn as yours when it has the same NPC or object and either stands on the same map within half a yard, or is a row the app wrote for that NPC or object, even if you have moved the spawn since.
+
+Undoing a renumber puts your NPC and object spawns back on their old ids. A spawn you placed in the 3D view stays on its new id when the database now holds the old one, and the undo says so.

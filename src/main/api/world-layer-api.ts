@@ -1,4 +1,5 @@
 import { addSpawn, deleteSpawn, deletesOf, groupsOf, isAdded, isDeleted, revertDelete, moveSpawn, movementsOf, respawnsOf, revertGroup, revertMovement, revertRespawn, revertRoute, revertSpawn, revertSpawnEvents, setMovement, setRespawn, setRoute, setSpawnEvents, spawnEventsOf, type RoutePoint, type WorldLayer } from '../../core/world/layer';
+import { idsAbove } from '../../core/ids/free';
 import { groupDrifted } from '../world/groups-api';
 import { IDLE } from '../../core/world/movement';
 import { addedDrifted, countWalkers, deletedDrifted, readDeletedSpawn, routeWalkerName, movementDrifted, readMovement, readPlacement, readRespawn, readRoute, readSpawnEvents, readTemplateLook, readWalkerEntries, respawnDrifted, routeDrifted, spawnDrifted, spawnEventsDrifted } from '../world/world-api';
@@ -71,7 +72,7 @@ export function createWorldLayerApi(s: Services): WorldLayerApi {
         const layer = deps.session.world.get();
         const placed = layer.added.filter((a) => a.kind === kind).map((a) => a.guid);
         if (wanted !== undefined && (taken || quests.includes(wanted) || placed.includes(wanted))) throw fail('BAD_REQUEST', `Spawn ${wanted} is in use`);
-        const guid = wanted ?? Math.max(dbMax, ...quests, ...placed, 0) + 1;
+        const guid = wanted ?? idsAbove(dbMax, [...quests, ...placed], 1)[0]!;
         const next = addSpawn(layer, { kind, guid, entry, name: template.name, map, placement: at, look: template.look });
         deps.session.world.put(next);
         return { layer: next, guid };

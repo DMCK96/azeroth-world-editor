@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import type { WorldLayer } from '../../core/world/layer';
 import { resultOfSteps } from './step-result';
 import type { HistoryStep } from '../project/history';
@@ -113,7 +114,16 @@ export function createTravel(ctx: ApiContext) {
         if (part.kind === 'world') {
           const to = direction === 'undo' ? part.before : part.after;
           const kept = withoutTaken(to, taken.spawns);
-          for (const a of to.added) if (!kept.added.includes(a)) left.add(`Could not ${verb}: spawn ${a.guid} is now in the database`);
+          const dropped = to.added.filter((a) => !kept.added.includes(a));
+          for (const a of dropped) left.add(`Could not ${verb}: spawn ${a.guid} is now in the database`);
+          // A spawn that only changed its id (a renumber) is not gone: leaving the id it has now keeps it, where dropping would delete it
+          const nowAdded = deps.session.world.get().added;
+          const renumbered = dropped.some((a) => nowAdded.some((b) => b.kind === a.kind && b.guid !== a.guid && b.entry === a.entry && b.map === a.map
+            && isDeepStrictEqual(b.placement, a.placement) && !to.added.some((t) => t.kind === b.kind && t.guid === b.guid)));
+          if (renumbered) {
+            skip.add(i);
+            return part;
+          }
           return direction === 'undo' ? { ...part, before: kept } : { ...part, after: kept };
         }
         if (part.kind === 'entities' && taken.entities.size > 0) {

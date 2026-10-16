@@ -13,15 +13,16 @@ const box = { encrypt: (s: string) => Uint8Array.from(Buffer.from(s)), decrypt: 
 function build(connect: boolean) {
   const db = forkDb();
   db.insert('creature_template', { entry: '1423', name: 'Stormwind Guard' });
+  const session = createProjectSession(defaultProjectMeta('P', 'C:\\out'));
   const api = createApi({ store: openStore(':memory:', box), openWorldDb: async () => db, openDevDb: async () => { throw new Error('x'); },
     fs: { writeFile: async () => {}, ensureDir: async () => {}, listDir: async () => [] }, now: () => new Date('2026-10-16T00:00:00Z'),
-    session: createProjectSession(defaultProjectMeta('P', 'C:\\out')), projects: {} as ProjectController });
+    session, projects: {} as ProjectController });
   const ready = (async () => {
     if (!connect) return;
     const rec: any = await api.saveProfile({ name: 'w', role: 'world', host: 'h', port: 1, user: 'u', database: 'd', password: 'p' });
     await api.connect(rec.value.id);
   })();
-  return { api, db, ready };
+  return { api, db, ready, session };
 }
 
 const mine = (guid: number) => ({ ...newNpc(11000230), name: 'Amalgam', displayId: 1, spawns: [{ ...newSpawn(guid), map: 0, x: 10, y: 20, z: 30 }] });
@@ -123,6 +124,67 @@ describe('resolveIdConflicts', () => {
     const { api, ready } = build(false);
     await ready;
     expect(((await api.resolveIdConflicts()) as any).ok).toBe(false);
+  });
+});
+
+describe('resolveIdConflicts alongside other changes', () => {
+  it('keeps an edit that lands while the database is being read', async () => {
+    const { api, db, ready } = build(true);
+    await ready;
+    clash(db, '5300700');
+    await put(api, mine(5300700));
+    // The window sends another edit while the renumber waits on the database
+    const read = db.selectRows.bind(db);
+    let edited = false;
+    db.selectRows = async (table: string, where: any) => {
+      const rows = await read(table, where);
+      if (!edited) {
+        edited = true;
+        await put(api, { ...mine(5300700), name: 'Edited meanwhile' });
+      }
+      return rows;
+    };
+    const done: any = await api.resolveIdConflicts();
+    expect(done.ok).toBe(true);
+    const npc = ((await api.projectEntities()) as any).value.npcs[0];
+    expect(npc.name).toBe('Edited meanwhile');
+    expect(npc.spawns[0].guid).toBe(5300701);
+  });
+
+  it('one undo puts the NPC spawn back, and keeps a 3D view spawn the database has taken the old id of', async () => {
+    const { api, db, ready, session } = build(true);
+    await ready;
+    db.insert('creature_template_model', { CreatureID: '1423', Idx: '0', CreatureDisplayID: '3167', DisplayScale: '1', Probability: '1' });
+    const at = { x: -9000, y: 50, z: 60, orientation: 0, rotation: null };
+    const added: any = await api.worldAddSpawn('creature', 1423, 0, at, 5300800);
+    expect(added.ok, JSON.stringify(added)).toBe(true);
+    await put(api, mine(5300700));
+    clash(db, '5300700');
+    db.insert('creature', { guid: '5300800', id1: '1424', map: '0', position_x: '1', position_y: '1', position_z: '1' });
+    const done: any = await api.resolveIdConflicts();
+    expect(done.value).toEqual({ renamed: 2 });
+    // Read from the session: the API's layer read hides a placed spawn whose guid the database holds
+    const renumbered = session.world.get().added.map((a) => a.guid)[0]!;
+    expect(renumbered).toBeGreaterThan(5300800);
+
+    const undone: any = await api.historyUndo();
+    expect(((await api.projectEntities()) as any).value.npcs[0].spawns[0].guid).toBe(5300700);
+    // The database holds 5300800 now, so the spawn cannot go back to it; it stays, renumbered, and the note says why
+    expect(session.world.get().added.map((a) => a.guid)).toEqual([renumbered]);
+    expect(JSON.stringify(undone.value)).toContain('Could not undo: spawn 5300800 is now in the database');
+  });
+
+  it('undoes a renumber of a 3D view spawn the database has not taken the old id of', async () => {
+    const { api, db, ready, session } = build(true);
+    await ready;
+    db.insert('creature_template_model', { CreatureID: '1423', Idx: '0', CreatureDisplayID: '3167', DisplayScale: '1', Probability: '1' });
+    await api.worldAddSpawn('creature', 1423, 0, { x: -9000, y: 50, z: 60, orientation: 0, rotation: null }, 5300800);
+    db.insert('creature', { guid: '5300800', id1: '1424', map: '0', position_x: '1', position_y: '1', position_z: '1' });
+    await api.resolveIdConflicts();
+    // The other spawn leaves the database (the server's content moved again), so the old id is free
+    db.selectRows = async () => [];
+    await api.historyUndo();
+    expect(session.world.get().added.map((a) => a.guid)).toEqual([5300800]);
   });
 });
 

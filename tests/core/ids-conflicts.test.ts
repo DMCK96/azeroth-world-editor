@@ -21,6 +21,7 @@ function fakeKind(key: string, claims: IdClaim[], taken: Record<string, IdHolder
   const freed: [string, number][] = [];
   return {
     key,
+    noun: 'thing',
     renamed,
     freed,
     scopeLabel: (scope) => `label ${scope}`,
@@ -45,7 +46,7 @@ describe('findConflicts', () => {
   it('reports a claimed id the database holds with something different', async () => {
     const kind = fakeKind('fake', [claim('a', 5, 1)], { [claimKey('a', 5)]: holder(2) });
     expect(await findConflicts(db, project, [kind])).toEqual([
-      { kind: 'fake', scope: 'a', scopeLabel: 'label a', id: 5, mine: holder(1), database: holder(2) },
+      { kind: 'fake', noun: 'thing', scope: 'a', scopeLabel: 'label a', id: 5, mine: holder(1), database: holder(2) },
     ]);
   });
 
@@ -64,6 +65,13 @@ describe('findConflicts', () => {
     const good = fakeKind('good', [claim('a', 7, 1)], { [claimKey('a', 7)]: holder(2) });
     const found = await findConflicts(db, project, [bad, good]);
     expect(found.map((c) => [c.kind, c.id])).toEqual([['good', 7]]);
+  });
+
+  it('says which kind it skipped and why, when asked', async () => {
+    const bad = fakeKind('bad', [claim('a', 5)], {}, true);
+    const skipped: [string, string][] = [];
+    await findConflicts(db, project, [bad], (key, error) => skipped.push([key, (error as Error).message]));
+    expect(skipped).toEqual([['bad', 'boom']]);
   });
 
   it('reports an id claimed twice once', async () => {
@@ -85,9 +93,9 @@ describe('planRenumber', () => {
   it('asks each kind and scope once for as many free ids as it has conflicts, in conflict order', async () => {
     const kind = fakeKind('fake', [], {});
     const conflicts = [
-      { kind: 'fake', scope: 'a', scopeLabel: '', id: 3, mine: holder(1), database: holder(2) },
-      { kind: 'fake', scope: 'a', scopeLabel: '', id: 5, mine: holder(1), database: holder(2) },
-      { kind: 'fake', scope: 'b', scopeLabel: '', id: 1, mine: holder(1), database: holder(2) },
+      { kind: 'fake', noun: 'thing', scope: 'a', scopeLabel: '', id: 3, mine: holder(1), database: holder(2) },
+      { kind: 'fake', noun: 'thing', scope: 'a', scopeLabel: '', id: 5, mine: holder(1), database: holder(2) },
+      { kind: 'fake', noun: 'thing', scope: 'b', scopeLabel: '', id: 1, mine: holder(1), database: holder(2) },
     ];
     const renames = await planRenumber(db, project, [kind], conflicts);
     expect(renames).toEqual([

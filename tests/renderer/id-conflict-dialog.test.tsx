@@ -7,7 +7,7 @@ import { IdConflictDialog } from '../../src/renderer/views/IdConflictDialog';
 import { makeMockApi, okv } from './mock-api';
 
 const conflict = (id: number) => ({
-  kind: 'spawn-guid', scope: 'creature', scopeLabel: 'NPC spawn', id,
+  kind: 'spawn-guid', noun: 'spawn', scope: 'creature', scopeLabel: 'NPC spawn', id,
   mine: { entry: 11000230, name: 'Amalgam', map: 0, x: 10, y: 20, z: 30 },
   database: { entry: 1423, name: 'Stormwind Guard', map: 0, x: -9481, y: 74, z: 56 },
 });
@@ -30,8 +30,28 @@ describe('IdConflictDialog', () => {
     mount([conflict(5300700), conflict(5300701)]);
     const dialog = screen.getByRole('alertdialog', { name: 'Ids clash with the database' });
     expect(dialog).toHaveTextContent('The database has a spawn with these ids now.');
-    expect(dialog).toHaveTextContent('NPC spawn 5300700: yours is Amalgam (11000230); the database has Stormwind Guard (1423) on map 0.');
-    expect(dialog).toHaveTextContent('NPC spawn 5300701');
+    expect(dialog).toHaveTextContent('5300700: yours is Amalgam (11000230); the database has Stormwind Guard (1423) on map 0 at -9481, 74, 56.');
+    expect(dialog).toHaveTextContent('5300701');
+  });
+
+  it('groups the clashes under what they are of', () => {
+    const object = { ...conflict(5400001), scope: 'gameobject', scopeLabel: 'Object spawn' };
+    mount([conflict(5300700), object, conflict(5300701)]);
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['NPC spawn', 'Object spawn']);
+    const npcs = screen.getByRole('heading', { name: 'NPC spawn' }).nextElementSibling!;
+    expect(npcs).toHaveTextContent('5300700');
+    expect(npcs).toHaveTextContent('5300701');
+    expect(npcs).not.toHaveTextContent('5400001');
+  });
+
+  it('names what the ids are of from the clashes, whatever kinds are present', () => {
+    mount([conflict(5300700), { ...conflict(60001), kind: 'quest-id', noun: 'quest', scope: 'quest', scopeLabel: 'Quest' }]);
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('The database has a spawn and a quest with these ids now.');
+  });
+
+  it('says the entry when a side has no name', () => {
+    mount([{ ...conflict(5300700), mine: { entry: 11000230, name: '', map: 0, x: 10, y: 20, z: 30 } }]);
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('yours is entry 11000230;');
   });
 
   it('waits while a crash recovery is offered', () => {

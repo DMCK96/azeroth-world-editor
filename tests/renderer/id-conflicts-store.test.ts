@@ -3,7 +3,7 @@ import { createAppStore } from '../../src/renderer/state/app-store';
 import { errv, makeMockApi, okv } from './mock-api';
 
 const conflict = {
-  kind: 'spawn-guid', scope: 'creature', scopeLabel: 'NPC spawn', id: 5300700,
+  kind: 'spawn-guid', noun: 'spawn', scope: 'creature', scopeLabel: 'NPC spawn', id: 5300700,
   mine: { entry: 11000230, name: 'Amalgam', map: 0, x: 10, y: 20, z: 30 },
   database: { entry: 1423, name: 'Stormwind Guard', map: 0, x: -9481, y: 74, z: 56 },
 };
@@ -53,6 +53,69 @@ describe('id conflicts in the store', () => {
     await store.getState().resolveIdConflicts();
     expect(store.getState().idConflicts).toEqual([conflict]);
     expect(store.getState().error).toBe('Could not renumber');
+  });
+});
+
+describe('a check that finishes late', () => {
+  /** An `idConflicts` whose answers are given by hand, in the order the checks were asked */
+  function slowChecks() {
+    const asked: ((value: unknown) => void)[] = [];
+    const idConflicts = vi.fn(() => new Promise((resolve) => { asked.push(resolve); }));
+    return { idConflicts, answer: (i: number, list: unknown[]) => asked[i]!(okv(list)) };
+  }
+
+  it('does not replace the answer to a newer check', async () => {
+    const { idConflicts, answer } = slowChecks();
+    const store = createAppStore(makeMockApi({ idConflicts }));
+    const older = store.getState().checkIdConflicts();
+    const newer = store.getState().checkIdConflicts();
+    answer(1, []);
+    await newer;
+    answer(0, [conflict]);
+    await older;
+    expect(store.getState().idConflicts).toEqual([]);
+  });
+
+  it('does not bring the dialog back after Leave as is', async () => {
+    const { idConflicts, answer } = slowChecks();
+    const store = createAppStore(makeMockApi({ idConflicts }));
+    const pending = store.getState().checkIdConflicts();
+    store.getState().dismissIdConflicts();
+    answer(0, [conflict]);
+    await pending;
+    expect(store.getState().idConflicts).toEqual([]);
+  });
+
+  it('does not bring the dialog back after Renumber', async () => {
+    const { idConflicts, answer } = slowChecks();
+    const store = createAppStore(makeMockApi({ idConflicts, resolveIdConflicts: vi.fn(async () => okv({ renamed: 1 })) }));
+    const pending = store.getState().checkIdConflicts();
+    await store.getState().resolveIdConflicts();
+    answer(0, [conflict]);
+    await pending;
+    expect(store.getState().idConflicts).toEqual([]);
+  });
+});
+
+describe('Renumber with an edit still waiting to be sent', () => {
+  it('sends it first, so the renumber does not overwrite it', async () => {
+    const api = makeMockApi({ resolveIdConflicts: vi.fn(async () => okv({ renamed: 1 })) });
+    const store = createAppStore(api);
+    const flushAll = vi.fn(async () => {});
+    store.setState({ idConflicts: [conflict], flushAll });
+    await store.getState().resolveIdConflicts();
+    expect(flushAll).toHaveBeenCalledTimes(1);
+    expect(flushAll.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(api.resolveIdConflicts).mock.invocationCallOrder[0]!);
+  });
+});
+
+describe('a check that cannot run', () => {
+  it('leaves a trace in the console', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const store = createAppStore(makeMockApi({ idConflicts: vi.fn(async () => errv('QUERY', 'boom')) }));
+    await store.getState().checkIdConflicts();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('id check'), 'boom');
+    warn.mockRestore();
   });
 });
 

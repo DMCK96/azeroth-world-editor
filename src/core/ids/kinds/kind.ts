@@ -16,6 +16,8 @@ export interface IdHolder {
   x: number;
   y: number;
   z: number;
+  /** The note a database row carries (its `Comment`), which a kind may read to tell the rows this tool wrote from other people's */
+  comment?: string;
 }
 
 /** One id the project allocated for itself, and what it stands for. `scope` tells ids of one kind apart (a creature guid from an object guid). */
@@ -30,6 +32,8 @@ export const claimKey = (scope: string, id: number): string => `${scope}:${id}`;
 /** A project id the database holds something different at */
 export interface IdConflict {
   kind: string;
+  /** What the id is of, for the dialog's sentence ("spawn") */
+  noun: string;
   scope: string;
   scopeLabel: string;
   id: number;
@@ -52,6 +56,8 @@ export interface IdRename {
 export interface IdKind {
   /** Names the kind in a conflict and in a rename */
   readonly key: string;
+  /** What this kind's ids are of, singular and lower case ("spawn"), for the dialog's sentence and the undo step's name */
+  readonly noun: string;
   /** What a scope of this kind is called in the dialog */
   scopeLabel(scope: string): string;
   /** The ids the project allocated for itself */
