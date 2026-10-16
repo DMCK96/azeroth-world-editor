@@ -14,6 +14,13 @@ describe('the 3D view’s clipboard', () => {
     expect([b!.respawnSecs, b!.wander]).toEqual([300, 0]);
   });
 
+  it('keeps the path a walker follows, as offsets from the NPC, so its copy can walk one of its own', () => {
+    const route = { points: [{ x: 3, y: 0, z: 10 }, { x: 3, y: 8, z: 11, carry: { delay: 4 } }] };
+    const [walker, stander] = entriesOf([spawn(1, 0, 0, { pathId: 801 }), spawn(2, 0, 0)], (guid) => (guid === 1 ? route : null));
+    expect(walker!.route).toEqual([{ dx: 3, dy: 0, dz: 0 }, { dx: 3, dy: 8, dz: 1, carry: { delay: 4 } }]);
+    expect(stander).not.toHaveProperty('route');
+  });
+
   it('keeps an NPC spawn’s own game events; one that follows its NPC, or an object, keeps none', () => {
     const [a, b, c] = entriesOf([spawn(1, 0, 0, { spawnEvents: null }), spawn(2, 0, 0, { spawnEvents: 'npc' }), spawn(3, 0, 0, { kind: 'object' })]);
     expect([a!.spawnEvents, b!.spawnEvents, c!.spawnEvents]).toEqual([null, 'npc', 'npc']);

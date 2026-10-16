@@ -43,7 +43,9 @@ async function ownView(api = makeMockApi({ worldLayer: vi.fn(async () => okv(EMP
   const entities = readEntities(open().aggregate.values);
   const setEntities = (next: ProjectEntities) => onChange(ENTITIES_FIELD, writeEntities(next));
   const store = { entities, setEntities, quests: [], layer: EMPTY, setLayer: () => {}, tracked: [], create: async () => ({ error: 'not here' }), remove: async () => null, adopt: async () => ({ error: 'not here' }), ensure: async () => null } as any;
-  const onOwnEdit = (edit: Parameters<typeof ownEdit>[1]) => { const next = ownEdit(entities, edit); if (next) setEntities(next); return next !== null; };
+  // Each edit builds on the last, as the app's store does
+  let current = entities;
+  const onOwnEdit = (edit: Parameters<typeof ownEdit>[1]) => { const next = ownEdit(current, edit); if (next) { current = next; setEntities(next); } return next !== null; };
   const view = <ProjectEntitiesProvider value={store}><World3DView map={0} start={{ x: -8900, y: -160, z: 82 }} hasClient own={ownViewSpawns(entities)} onOwnEdit={onOwnEdit} /></ProjectEntitiesProvider>;
   // With steps, the view runs under the app's history, as in the app
   const appStore = createAppStore(api);
@@ -322,6 +324,7 @@ describe('one gesture, one layer drawn', () => {
     const { onChange, world } = await ownView(api);
     const hela = { kind: 'creature', guid: 900, entry: 12000001, name: 'Hela', own: true, added: false, pathId: 9000, wander: 0, map: 0, placement: { x: -8900, y: -160, z: 82, orientation: 0, rotation: null } };
     world.selectedSpawns = vi.fn(() => [hela]);
+    world.routeOf = vi.fn(() => null);
     world.groundAt = vi.fn(() => ({ x: 5, y: 6, z: 7 }));
     world.lastPointer = vi.fn(() => null);
     world.selectSpawns = vi.fn();
@@ -331,5 +334,23 @@ describe('one gesture, one layer drawn', () => {
     const [field, value] = onChange.mock.calls.at(-1)!;
     expect(field).toBe(ENTITIES_FIELD);
     expect(readEntities({ [ENTITIES_FIELD]: value }).npcs[0]!.spawns.map((s) => s.guid)).toEqual([900, 901]);
+  });
+
+  it('pastes a patrolling NPC with a patrol of its own, the same route moved with it', async () => {
+    const api = makeMockApi({ patrolPathId: vi.fn(async () => okv(9100)), worldLayer: vi.fn(async () => okv(EMPTY)), allocateIds: vi.fn(async () => okv([901])), mapFloors: vi.fn(async () => okv({ reason: 'none' })) });
+    const { onChange, world } = await ownView(api);
+    const hela = { kind: 'creature', guid: 900, entry: 12000001, name: 'Hela', own: true, added: false, pathId: 9000, wander: 0, map: 0, placement: { x: -8900, y: -160, z: 82, orientation: 0, rotation: null } };
+    world.selectedSpawns = vi.fn(() => [hela]);
+    world.routeOf = vi.fn(() => ({ pathId: 9000, points: [{ x: -8900, y: -160, z: 82 }, { x: -8890, y: -160, z: 82 }] }));
+    world.groundAt = vi.fn(() => ({ x: 5, y: 6, z: 7 }));
+    world.lastPointer = vi.fn(() => null);
+    world.selectSpawns = vi.fn();
+    act(() => { world.options.onShortcut('KeyC'); });
+    act(() => { world.options.onShortcut('KeyV'); });
+    const copied = () => readEntities({ [ENTITIES_FIELD]: onChange.mock.calls.at(-1)?.[1] }).npcs[0]?.spawns.find((s) => s.guid === 901);
+    await waitFor(() => expect(copied()?.patrol).toBeTruthy());
+    const copy = copied()!;
+    expect(copy.patrol?.pathId).toBe(9100);
+    expect(copy.patrol?.points.map((p) => [p.x - copy.x, p.y - copy.y])).toEqual([[0, 0], [10, 0]]);
   });
 });
