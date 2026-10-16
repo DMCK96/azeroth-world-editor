@@ -45,3 +45,12 @@ The project's name shows in the top bar, with a dot beside it while there are un
 :::tip[Recovering unsaved work]
 The app keeps a recovery copy of your work in the background. If it closes unexpectedly, it offers to restore that work the next time you connect.
 :::
+
+### When the database has an id your project uses
+
+The spawns you add get ids of their own. When you open a project, or connect to a database, the app checks those ids against the database. If the database now holds a different spawn at one of them, a window lists them and asks whether to renumber yours.
+
+- **Renumber** gives your spawns free ids, everywhere the project uses them, as one step you can undo.
+- **Leave as is** changes nothing. You are asked again the next time you open the project or connect.
+
+A spawn that your own exported patch already put into a dev database is not a clash. The app treats a database spawn as yours when it has the same NPC or object, the same map and stands within half a yard.
