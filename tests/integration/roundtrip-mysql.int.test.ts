@@ -24,7 +24,7 @@ afterAll(async () => { await scratch?.drop(); await db?.close(); });
 async function gate(questId: number, applyTwice = false) {
   const schema = await loadSchema(db, tables);
   const { aggregate, snapshot } = await importQuest(db, schema, registry, questId);
-  const sql = renderPatch(buildPatch({ aggregate, snapshot, schema, registry }).statements, schema, { toolVersion: TOOL_VERSION, questId, date: '2026_09_21' });
+  const sql = renderPatch(buildPatch({ aggregate, snapshot, schema, registry }).statements, schema, { toolVersion: TOOL_VERSION, questId, date: '20260921' });
   return verifyPatchInMysql(scratch, { snapshot, patchSql: sql, expected: snapshot.tables, schema, registry, applyTwice });
 }
 
@@ -76,7 +76,7 @@ describe('MySQL round-trip gate', () => {
     };
 
     const { statements } = buildPatch({ aggregate: edited, snapshot, schema, registry });
-    const sql = renderPatch(statements, schema, { toolVersion: TOOL_VERSION, questId, date: '2026_09_21' });
+    const sql = renderPatch(statements, schema, { toolVersion: TOOL_VERSION, questId, date: '20260921' });
     expect(sql).toContain('\\\\'); // the backslash really did reach the rendered patch
     const expected = applyPatchInMemory(snapshot.tables, statements, keyColumnsByTable(registry));
 

@@ -33,9 +33,9 @@ export const KEY_COLUMNS = keyColumnsByTable(registry);
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 
-/** `yyyy_mm_dd` in UTC, so the same export produces the same file name wherever it runs. */
+/** `yyyymmdd` in UTC, so the same export produces the same file name wherever it runs. */
 export const patchDate = (now: Date): string =>
-  `${now.getUTCFullYear()}_${pad(now.getUTCMonth() + 1)}_${pad(now.getUTCDate())}`;
+  `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}`;
 
 /**
  * The round-trip gate as the UI needs it: a quest that cannot even be patched in memory is opened

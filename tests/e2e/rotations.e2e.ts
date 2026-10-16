@@ -95,7 +95,7 @@ test('two quests are made a daily rotation, exported with its revert; the World 
   const sql = readFileSync(written, 'utf8');
   expect(sql).toMatch(/INSERT INTO `pool_template` .*'Test rotation'/);
   expect(sql.match(/INSERT INTO `pool_quest`/g) ?? []).toHaveLength(2);
-  const revert = readFileSync(written.replace(/_project\.sql$/, '_project_revert.sql'), 'utf8');
+  const revert = readFileSync(written.replace(/\.sql$/, '_revert.sql'), 'utf8');
   expect(revert).toMatch(/DELETE FROM `pool_template`/);
   expect(revert).toMatch(/DELETE FROM `pool_quest`/);
   await page.keyboard.press('Escape');

@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import type { RawRow } from '../../core/db/types';
-import { patchFileName, renderPatch, renderStatement } from '../../core/export/render-patch';
+import { patchFileName, renderPatch, renderStatement, revertFileName } from '../../core/export/render-patch';
 import { rowsOrNone } from '../../core/links/context';
 import { applyPatchInMemory } from '../../core/roundtrip/apply';
 import { compareTables } from '../../core/roundtrip/compare';
@@ -23,16 +23,18 @@ const CREATURE_TABLE = 'creature_template';
 const QUEST_GIVER_BIT = 2;
 
 /**
- * The number for the next export of a kind on `date`: one past the highest `<date>_<nn><marker>…` already in the
- * folder (a patch's revert file counts too) and one past the last this session wrote. Counting the files instead
- * sent a new export to an old name as soon as an earlier one was moved out of the folder, overwriting what was left.
+ * The number for the next export on `date`: one past the highest `rev_<date>_<nn>_…` already in the folder
+ * (a patch's revert file counts too) and one past the last this session wrote, starting at 01. The number
+ * is shared by every kind of export, as the updates of one day are numbered together. Counting the files
+ * instead sent a new export to an old name as soon as an earlier one was moved out of the folder,
+ * overwriting what was left.
  */
-export function nextExportSequence(existing: readonly string[], date: string, marker: string, writtenBefore = -1): number {
-  const own = new RegExp(`^${date}_(\\d+)${marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+export function nextExportSequence(existing: readonly string[], date: string, writtenBefore = 0): number {
+  const own = new RegExp(`^rev_${date}_(\\d+)_`);
   const onDisk = existing.reduce((highest, name) => {
     const found = own.exec(name);
     return found ? Math.max(highest, Number(found[1])) : highest;
-  }, -1);
+  }, 0);
   return Math.max(onDisk, writtenBefore) + 1;
 }
 
@@ -42,7 +44,7 @@ export function createExportApi(s: Services): ExportApi {
   const { guardWrite, guardProject } = s.checks;
   const { projectPatch, patchFor } = s.patches;
   const { forgetPools } = s.groups;
-  /** The last number written per day and kind this session, so a patch moved out of the folder is not numbered again */
+  /** The last number written per day this session, so a patch moved out of the folder is not numbered again */
   const lastWritten = new Map<string, number>();
 
   return {
@@ -121,12 +123,11 @@ export function createExportApi(s: Services): ExportApi {
         const outputDir = deps.exportDirOverride || live.exportDir || deps.defaultExportDir || deps.session.meta().outputDir;
         await deps.fs.ensureDir(outputDir);
         const existing = await deps.fs.listDir(outputDir);
-        const kind = `${date}|project`;
-        const number = nextExportSequence(existing, date, '_project', lastWritten.get(kind));
-        lastWritten.set(kind, number);
-        const sequence = String(number).padStart(2, '0');
-        const applyPath = join(outputDir, `${date}_${sequence}_project.sql`);
-        const revertPath = join(outputDir, `${date}_${sequence}_project_revert.sql`);
+        const sequence = nextExportSequence(existing, date, lastWritten.get(date));
+        lastWritten.set(date, sequence);
+        const applyName = patchFileName({ date, sequence, topic: deps.session.meta().name });
+        const applyPath = join(outputDir, applyName);
+        const revertPath = join(outputDir, revertFileName(applyName));
         await deps.fs.writeFile(applyPath, sql);
         await deps.fs.writeFile(revertPath, revertSql);
         forgetPools();
@@ -175,16 +176,11 @@ export function createExportApi(s: Services): ExportApi {
         // a project shared between people must not send their patches into someone else's folders.
         const outputDir = deps.exportDirOverride || live.exportDir || deps.defaultExportDir || deps.session.meta().outputDir;
         await deps.fs.ensureDir(outputDir);
-        // Several exports of one quest on one day sit side by side, numbered in the order written.
-        const marker = `_quest_${questId}_`;
+        // Several exports on one day sit side by side, numbered in the order written.
         const existing = await deps.fs.listDir(outputDir);
-        const kind = `${date}|${marker}`;
-        const sequence = nextExportSequence(existing, date, marker, lastWritten.get(kind));
-        lastWritten.set(kind, sequence);
-        const path = join(
-          outputDir,
-          patchFileName({ date, sequence, questId, title: textOf(quest.aggregate, TITLE_FIELD) }),
-        );
+        const sequence = nextExportSequence(existing, date, lastWritten.get(date));
+        lastWritten.set(date, sequence);
+        const path = join(outputDir, patchFileName({ date, sequence, topic: textOf(quest.aggregate, TITLE_FIELD) }));
         await deps.fs.writeFile(path, sql);
         quests.markExported(questId, path);
 
