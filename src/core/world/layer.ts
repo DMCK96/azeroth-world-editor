@@ -478,7 +478,7 @@ const RESPAWN_SECS = '300';
 const ANIM_FULL = '100';
 const GO_READY = '1';
 /** Marks the rows this tool wrote, as a quest's export does with its own tag */
-const PLACED_COMMENT = 'ACQC 3D view';
+export const PLACED_COMMENT = 'ACQC 3D view';
 
 const round6 = (n: number): number => Math.round(n * 1e6) / 1e6;
 

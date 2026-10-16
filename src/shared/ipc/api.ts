@@ -13,6 +13,7 @@ import type { LoreApi } from './lore';
 import type { AuthoringApi } from './authoring';
 import type { DebugApi } from './debug';
 import type { UpdatesApi } from './updates';
+import type { IdsApi } from './ids';
 
 /** Everything the renderer can ask the main process to do: every area's calls */
 export interface Api
@@ -30,4 +31,5 @@ export interface Api
     LoreApi,
     AuthoringApi,
     DebugApi,
-    UpdatesApi {}
+    UpdatesApi,
+    IdsApi {}

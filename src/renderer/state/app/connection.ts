@@ -122,6 +122,8 @@ export function createConnectionSlice({ api, kit, set, get }: SliceArgs): Connec
       await loadHistory({ api, set });
       await get().loadEntities();
       await get().loadLayer();
+      // A different database may hold ids the project uses
+      void get().checkIdConflicts();
     },
     async saveConnection(draft, original) {
       const saves = draftToSaves(draft, original);
@@ -189,6 +191,7 @@ export function createConnectionSlice({ api, kit, set, get }: SliceArgs): Connec
       // The canvas's links, starts and issue counts are read from the database just connected.
       await get().loadNodes();
       await loadHistory({ api, set });
+      void get().checkIdConflicts();
       return null;
     },
     async chooseServerDataDir() {

@@ -24,8 +24,8 @@ export function createContext(deps: ApiDeps, conn: Connection) {
   const quests = deps.session.quests;
   const history = deps.session.history;
   /** Runs work as one step of the history, however many changes it makes */
-  const asOneStep = async <T,>(work: () => Promise<T>): Promise<T> => {
-    const token = history.begin();
+  const asOneStep = async <T,>(work: () => Promise<T>, label?: string): Promise<T> => {
+    const token = history.begin(label);
     try {
       return await work();
     } finally {

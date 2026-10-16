@@ -178,6 +178,8 @@ const REQUEST_SCHEMAS: Record<keyof Api, z.ZodType<unknown[]>> = {
   putProjectEntities: z.tuple([z.object({ npcs: z.array(z.unknown()), objects: z.array(z.unknown()), items: z.array(z.unknown()) })]),
   readExistingEntity: z.tuple([z.enum(['npc', 'object', 'item']), z.number().int().min(1)]),
   existingDrift: z.tuple([]),
+  idConflicts: z.tuple([]),
+  resolveIdConflicts: z.tuple([]),
   deleteEntity: z.tuple([z.enum(['npc', 'object', 'item']), z.number().int().min(1)]),
   worldLayer: z.tuple([]),
   worldMoveSpawn: z.tuple([worldKindArg, z.number().int(), placementArg]),
