@@ -11,8 +11,8 @@ export type { Placement, RoutePoint, WorldAddedSpawn, WorldDeletedSpawn, WorldEv
 export type WorldChange =
   | (WorldSpawnEdit & { type: 'spawn'; drifted: boolean })
   | (WorldRouteEdit & { type: 'route'; drifted: boolean })
-  /** A spawn placed in the view; `drifted` when the database now has a spawn with its id */
-  | (WorldAddedSpawn & { type: 'added'; drifted: boolean })
+  /** A spawn placed in the view; `drifted` when a different spawn in the database now has its id, `inDatabase` when the database has this very spawn */
+  | (WorldAddedSpawn & { type: 'added'; drifted: boolean; inDatabase: boolean })
   /** An NPC's movement; `drifted` when the database's no longer matches its original */
   | (WorldMovementEdit & { type: 'movement'; drifted: boolean })
   /** A database spawn's respawn time; `drifted` when the database's no longer matches its original */

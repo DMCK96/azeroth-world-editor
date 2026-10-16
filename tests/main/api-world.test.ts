@@ -240,6 +240,14 @@ describe('the world layer through the API', () => {
       expect(((await api.worldChanges()) as any).value[0].drifted).toBe(true);
     });
 
+    it('says a placed spawn is already in the database, not that the id clashes, when the row is the same thing', async () => {
+      const { api, db } = await setup(templates);
+      await api.worldAddSpawn('creature', 1423, 0, at);
+      db.insert('creature', { guid: '80333', id1: '1423', map: '0', position_x: String(at.x), position_y: String(at.y), position_z: String(at.z), orientation: '0' });
+      const [change] = ((await api.worldChanges()) as any).value;
+      expect([change.drifted, change.inDatabase]).toEqual([false, true]);
+    });
+
     it('exports a placed NPC and object as inserts with every column, and a revert that deletes them', async () => {
       const { api, written } = await setup(templates);
       await api.worldAddSpawn('creature', 1423, 0, at);

@@ -6,6 +6,7 @@ import { pickPreset } from '../../core/db/view-spawns';
 import type { DeletedTable, Placement, RoutePoint, WorldAddedSpawn, WorldDeletedSpawn, WorldEventEdit, WorldLook, WorldMovementEdit, WorldRespawnEdit, WorldRouteEdit, WorldSpawnEdit, WorldSpawnKind } from '../../core/world/layer';
 import { spawnEventRows } from '../../core/entities/spawn-events-read';
 import { sameRows } from '../../core/entities/existing';
+import { SAME_SPOT } from '../../core/ids/kinds/spawn-guid';
 import { movementOfRow, sameMovement, type Movement } from '../../core/world/movement';
 
 /**
@@ -76,9 +77,17 @@ export async function readTemplateLook(db: WorldDb, kind: WorldSpawnKind, entry:
   return { name: row.name ?? '', look: { displayId, scale, equipment, preset: presets.length > 0 ? pickPreset(presets, entry, displayId) : null } };
 }
 
-/** Whether the database now has a spawn with a placed spawn's id (the patch would then replace it) */
-export async function addedDrifted(db: WorldDb, spawn: WorldAddedSpawn): Promise<boolean> {
-  return (await readPlacement(db, spawn.kind, spawn.guid)) !== null;
+/**
+ * How the database stands to a placed spawn's id: `inDatabase` when its row is the very same NPC or object (same entry, map and
+ * spot, as an applied patch leaves it), `drifted` when a different thing holds the id (the patch would replace it)
+ */
+export async function addedStanding(db: WorldDb, spawn: WorldAddedSpawn): Promise<{ drifted: boolean; inDatabase: boolean }> {
+  const held = await readPlacement(db, spawn.kind, spawn.guid);
+  if (held === null) return { drifted: false, inDatabase: false };
+  const near = (a: number, b: number): boolean => Math.abs(a - b) <= SAME_SPOT;
+  const p = spawn.placement;
+  const same = held.entry === spawn.entry && held.map === spawn.map && near(held.placement.x, p.x) && near(held.placement.y, p.y) && near(held.placement.z, p.z);
+  return { drifted: !same, inDatabase: same };
 }
 
 /** Every `waypoint_data` column a point keeps as it is; the rest are what the view edits */

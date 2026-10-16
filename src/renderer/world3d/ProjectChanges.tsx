@@ -200,7 +200,8 @@ function ChangeRow({ change, eventNames, onRevert }: { change: WorldChange; even
     return (
       <tr>
         <td>
-          {name} · {change.kind === 'creature' ? 'NPC' : 'Object'} {change.entry} · new spawn {change.guid} {drift}
+          {name} · {change.kind === 'creature' ? 'NPC' : 'Object'} {change.entry} · {change.inDatabase ? `spawn ${change.guid}` : `new spawn ${change.guid}`} {drift}
+          {change.inDatabase && <span className="world-changes__drift">This {change.kind === 'creature' ? 'NPC' : 'object'} spawn is already in the database</span>}
         </td>
         <td>Not placed yet</td>
         <td>{where(change.placement)}</td>
