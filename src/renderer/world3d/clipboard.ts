@@ -69,7 +69,7 @@ export function clearClipboard(): void {
 
 /**
  * Where each entry lands with the group's anchor at `at`, on the map being viewed. Each keeps its
- * offset from the anchor in height too; the caller may snap the anchor to the floor, never each entry.
+ * offset from the anchor in height too; nothing is snapped to the floor.
  */
 export function layoutAt(list: readonly ClipEntry[], at: { x: number; y: number; z: number }, map: number): { entry: ClipEntry; at: Placement; map: number }[] {
   return list.map((entry) => ({

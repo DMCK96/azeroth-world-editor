@@ -217,13 +217,12 @@ export function useWorldMenu(deps: WorldMenuDeps): {
     return done.length;
   };
 
-  /** Puts a copied group down with its anchor at `at`. Only a paste snaps the anchor to the floor; the group keeps its own layout round it */
+  /** Puts a copied group down with its anchor at `at` and nothing snapped: the group keeps its own layout, and only the gizmo's yellow square snaps */
   const paste = async (entries: readonly ClipEntry[], at: At, verb = 'Paste'): Promise<void> => {
     const { map } = d.current;
     const ok = pasteable(entries);
     if (ok.entries.length === 0) return;
-    const anchor = verb === 'Paste' ? await floored({ ...at, orientation: 0, rotation: null }) : at;
-    const laid = layoutAt(ok.entries, anchor, map).map((l) => ({ kind: l.entry.kind, entry: l.entry.entry, own: l.entry.own, at: l.at, respawnSecs: l.entry.respawnSecs, wander: l.entry.wander, spawnEvents: l.entry.spawnEvents }));
+    const laid = layoutAt(ok.entries, at, map).map((l) => ({ kind: l.entry.kind, entry: l.entry.entry, own: l.entry.own, at: l.at, respawnSecs: l.entry.respawnSecs, wander: l.entry.wander, spawnEvents: l.entry.spawnEvents }));
     await putAll(laid, laid.length === 1 ? `${verb} a spawn` : `${verb} ${laid.length} spawns`);
   };
 
