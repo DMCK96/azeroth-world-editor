@@ -27,7 +27,7 @@ import { GroupDialog } from './GroupDialog';
 import { PlaceDialog, type Chosen } from './PlaceDialog';
 import { useHistorySteps } from '../state/history-context';
 import { AiLock } from '../components/AiLock';
-import { newSpawnGuid } from './spawn-guid';
+import { newSpawnGuids } from './spawn-guid';
 import { getPreferencesSnapshot } from '../preferences/store';
 
 export const NO_LONGER_HERE = 'That spawn is no longer here';
@@ -181,18 +181,14 @@ export function useWorldMenu(deps: WorldMenuDeps): {
   const facingCamera = (at: At, kind: 'creature' | 'object'): Placement => placementAt(at, d.current.world.current?.camera().position ?? at, kind);
 
   /** Puts one spawn down: a quest's own goes to the quest, the rest to the world layer. The edit that did it, or null */
-  const putOne = async (put: Put): Promise<SpawnEdit | null> => {
+  const putOne = async (put: Put, guid: number | undefined): Promise<SpawnEdit | null> => {
     const { api, map, onOwnEdit, setNote, takeLayer, toRow } = d.current;
     if (!api) return null;
     const at = toRow(put.at);
     if (put.own) {
       if (!onOwnEdit) return null;
-      const made = await newSpawnGuid(api, put.kind);
-      if ('error' in made) {
-        setNote(made.error);
-        return null;
-      }
-      const edit: SpawnEdit = { kind: 'presence', spawn: { kind: put.kind, guid: made.guid, entry: put.entry, own: true }, present: true, at, map };
+      if (guid === undefined) return null;
+      const edit: SpawnEdit = { kind: 'presence', spawn: { kind: put.kind, guid, entry: put.entry, own: true }, present: true, at, map };
       return onOwnEdit(edit) === false ? null : edit;
     }
     const result = await api.worldAddSpawn(put.kind === 'object' ? 'gameobject' : 'creature', put.entry, map, at);
@@ -222,9 +218,23 @@ export function useWorldMenu(deps: WorldMenuDeps): {
   /** Puts spawns down one after another, selects them, and makes them one undo step; how many went down */
   const putAll = async (puts: Put[], label?: string): Promise<number> => {
     const done: SpawnEdit[] = [];
+    // The project's own spawns get their guids together, before any is put down
+    const guids = new Map<Put, number>();
+    const { api } = d.current;
+    if (api) {
+      for (const kind of ['creature', 'object'] as const) {
+        const own = puts.filter((p) => p.own && p.kind === kind);
+        const made = await newSpawnGuids(api, kind, own.length);
+        if ('error' in made) {
+          d.current.setNote(made.error);
+          continue;
+        }
+        own.forEach((p, i) => guids.set(p, made.guids[i]!));
+      }
+    }
     await step.current(async () => {
       for (const put of puts) {
-        const edit = await putOne(put);
+        const edit = await putOne(put, guids.get(put));
         if (!edit) continue;
         done.push(edit);
         if (put.respawnSecs !== undefined && put.respawnSecs !== 300) await d.current.send({ kind: 'respawn', spawn: edit.spawn, secs: put.respawnSecs });
