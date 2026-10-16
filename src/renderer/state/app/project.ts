@@ -63,6 +63,8 @@ export function createProjectSlice({ api, kit, set, get }: SliceArgs): ProjectSl
     await get().loadLayer();
     // Last, so the canvas applies the new project's viewport rather than the old one's.
     set((s) => ({ projectEpoch: s.projectEpoch + 1 }));
+    // Not awaited: the ids are checked while the project shows, and a slow database never holds up opening it
+    void get().checkIdConflicts();
   }
 
   return {

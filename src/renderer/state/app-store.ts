@@ -10,6 +10,7 @@ import { createRotationsSlice } from './app/rotations';
 import { createWorldSlice } from './app/world';
 import { createExportSlice } from './app/export';
 import { createProjectSlice } from './app/project';
+import { createIdsSlice } from './app/ids';
 import { createHistorySlice } from './app/history';
 import { createFocusSlice } from './app/focus';
 import { createLinksEditSlice } from './app/links-edit';
@@ -40,6 +41,7 @@ export function createAppStore(api: Api, opts: { saveDelayMs?: number } = {}): A
       ...createWorldSlice(args),
       ...createExportSlice(args),
       ...createProjectSlice(args),
+      ...createIdsSlice(args),
       ...createHistorySlice(args),
       ...createFocusSlice(args),
       ...createLinksEditSlice(args),
