@@ -1,6 +1,6 @@
 {
   "name": "azeroth-world-editor",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "description": "Azeroth World Editor (AWE): a world and quest editor for AzerothCore",
   "author": "Daniel Mckibbin <vyrus@fourtwenty.games>",
