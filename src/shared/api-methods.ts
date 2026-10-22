@@ -60,6 +60,8 @@ export const API_METHODS = [
   'worldGroupSpawns',
   'worldGroupsOnMap',
   'worldNewGroupId',
+  'worldWoodcuttingTrees',
+  'worldNearestWoodcuttingTree',
   'worldCheckGroup',
   'worldSetGroup',
   'worldDeleteGroup',

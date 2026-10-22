@@ -6,6 +6,7 @@ import { createMapApi } from './map-api';
 import { createEntitiesApi } from './entities-api';
 import { createWorldLayerApi } from './world-layer-api';
 import { createSpawnGroupsApi } from './spawn-groups-api';
+import { createWoodcuttingApi } from './woodcutting-api';
 import { createHistoryApi } from './history-api';
 import { createExportApi } from './export-api';
 import { createProjectApi } from './project-api';
@@ -42,6 +43,7 @@ export function createApi(deps: ApiDeps): Api {
     ...createEntitiesApi(services),
     ...createWorldLayerApi(services),
     ...createSpawnGroupsApi(services),
+    ...createWoodcuttingApi(services),
     ...createHistoryApi(services),
     ...createExportApi(services),
     ...createProjectApi(services),

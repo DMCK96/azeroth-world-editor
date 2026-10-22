@@ -15,6 +15,7 @@ export type * from './map';
 export type * from './entities';
 export type * from './world-layer';
 export type * from './spawn-groups';
+export type * from './woodcutting';
 export type * from './history';
 export type * from './export';
 export type * from './project';

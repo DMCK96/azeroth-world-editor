@@ -129,6 +129,7 @@ On the ground, with a quest open:
 
 ### New NPCs and objects
 
+- **Spawn woodcutting tree here** puts down a woodcutting tree of the kind nearest where you right-clicked, and **Woodcutting tree** lists every tree, by the log it gives (Forestwood, Wildwood and so on) and then by name. The trees are a Conquest of Azeroth feature: a database without them shows neither item. The bonus magical log is part of each tree's own loot, so there is nothing to switch on.
 - **New NPC here…** and **New object here…** make a new [NPC or object](/azeroth-world-editor/guides/npcs-and-objects/) for the project, with a spawn where you right-clicked, and open its editor. No quest needs to be open.
 - On any NPC or object, **Edit NPC…** or **Edit object…** opens its editor. For one the database already has this needs the world database connected; see [Change an NPC or object that already exists](/azeroth-world-editor/guides/npcs-and-objects/#change-one-that-already-exists).
 - On an object, **Make lootable…** turns it into a chest and opens its loot. **Stop being lootable** turns it back.

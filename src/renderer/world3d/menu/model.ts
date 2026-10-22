@@ -1,6 +1,7 @@
 import type { SpawnInfo } from '../scene/spawn/SpawnManager';
 import type { QuestRoles, Role } from '@core/modules/quest-roles';
 import type { Dock } from '@core/map/transport-docks';
+import type { WoodcuttingTree } from '@core/world/woodcutting';
 import type { MenuGroupId } from './section';
 
 /**
@@ -48,6 +49,8 @@ export interface MenuContext {
   marked: boolean;
   /** The view shows a vessel: its passengers' walking paths are drawn there but not edited */
   vessel: boolean;
+  /** The woodcutting trees the database has (a Conquest of Azeroth / Ascension feature); none when it has none */
+  woodcutting: readonly WoodcuttingTree[];
 }
 
 export type MenuAction =
@@ -58,6 +61,10 @@ export type MenuAction =
   | { kind: 'placeHere'; what: 'creature' | 'object'; at: At }
   /** A new project NPC or object standing here, attached to no quest */
   | { kind: 'newEntity'; what: 'creature' | 'object'; at: At }
+  /** A woodcutting tree of this entry standing here */
+  | { kind: 'placeTree'; entry: number; name: string; at: At }
+  /** A woodcutting tree of the kind nearest here, standing here */
+  | { kind: 'placeNearestTree'; at: At }
   /** `tab`: the editor tab to open on */
   | { kind: 'editEntity'; spawn: MenuSpawn; tab?: MenuEditorTab }
   | { kind: 'setLootable'; spawn: MenuSpawn; on: boolean }

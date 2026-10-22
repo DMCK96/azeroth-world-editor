@@ -8,6 +8,7 @@ import type { World3D } from './world3d';
 import type { SpawnInfo } from './scene/spawn/SpawnManager';
 import type { EditPoint, SpawnEdit, SpawnRef } from './edits';
 import type { ProjectEntities } from '@core/entities/model';
+import type { WoodcuttingTree } from '@core/world/woodcutting';
 import { AI_WRITING, editsProject, lockEdits, type At, type MenuAction, type MenuEditorTab, type MenuGroup, type MenuSpawn, type MenuTarget, type QuestMenuInfo } from './menu/model';
 import { buildMenu, NEEDS_GROUND } from './menu/section';
 import { subjectOf } from './menu/subject';
@@ -32,6 +33,7 @@ import { getPreferencesSnapshot } from '../preferences/store';
 
 export const NO_LONGER_HERE = 'That spawn is no longer here';
 export const COPIED_COORDINATES = 'Copied .go xyz to the clipboard';
+export const NO_TREE_NEAR = 'No woodcutting tree is near here: pick one from Woodcutting tree';
 
 /** What the right-click menu needs of the view round it */
 export interface WorldMenuDeps {
@@ -138,6 +140,22 @@ export function useWorldMenu(deps: WorldMenuDeps): {
   const drawingRef = useRef(drawing);
   drawingRef.current = drawing;
   const [marked, setMarked] = useState(false);
+  // The database's woodcutting trees (a Conquest of Azeroth / Ascension feature): none in one without them, and until they are read
+  const [trees, setTrees] = useState<readonly WoodcuttingTree[]>([]);
+  const api = deps.api;
+  useEffect(() => {
+    let live = true;
+    setTrees([]);
+    if (api) {
+      Promise.resolve()
+        .then(() => api.worldWoodcuttingTrees())
+        .then((read) => live && read.ok && setTrees(read.value))
+        .catch(() => {});
+    }
+    return () => {
+      live = false;
+    };
+  }, [api]);
 
   // A menu belongs to the world it was opened on
   useEffect(() => setMenu(null), [deps.map]);
@@ -167,6 +185,7 @@ export function useWorldMenu(deps: WorldMenuDeps): {
       project: onNewQuest !== undefined,
       marked,
       vessel: aboardVessel(target, d.current.vessel, (kind, guid) => d.current.world.current?.frameOfSpawn(kind, guid) ?? null),
+      woodcutting: trees,
     });
     const groups = locked.current ? lockEdits(built) : built;
     if (groups.length > 0) setMenu({ groups, at: client });
@@ -424,6 +443,24 @@ export function useWorldMenu(deps: WorldMenuDeps): {
       case 'newEntity':
         await d.current.onCreateEntity?.(action.what, d.current.toRow(await floored(facingCamera(action.at, action.what))));
         return;
+      case 'placeTree':
+        await placeTree(action.entry, action.name, action.at);
+        return;
+      case 'placeNearestTree': {
+        if (!api) return;
+        const near = await api.worldNearestWoodcuttingTree(d.current.map, action.at.x, action.at.y);
+        if (!near.ok) {
+          setNote(near.error.message);
+          return;
+        }
+        const tree = trees.find((t) => t.entry === near.value);
+        if (!tree) {
+          setNote(NO_TREE_NEAR);
+          return;
+        }
+        await placeTree(tree.entry, tree.name, action.at);
+        return;
+      }
       case 'editEntity':
         d.current.onEditEntity?.(action.spawn.kind, action.spawn.entry, action.tab);
         return;
@@ -628,9 +665,12 @@ export function useWorldMenu(deps: WorldMenuDeps): {
     return true;
   };
 
-  const placeOnce = async (chosen: Chosen, at: At): Promise<void> => {
-    await putAll([{ kind: chosen.kind, entry: chosen.entry, own: false, at: await floored(facingCamera(at, chosen.kind)) }]);
+  const placeOnce = async (chosen: Chosen, at: At, label?: string): Promise<void> => {
+    await putAll([{ kind: chosen.kind, entry: chosen.entry, own: false, at: await floored(facingCamera(at, chosen.kind)) }], label);
   };
+
+  /** A woodcutting tree standing here, as one undo step */
+  const placeTree = (entry: number, name: string, at: At): Promise<void> => placeOnce({ kind: 'object', entry, name }, at, `Spawn ${name}`);
 
   const moving = (yards: number): Movement => ({ type: yards > 0 ? 'wander' : 'idle', wander: yards, pathId: null });
 

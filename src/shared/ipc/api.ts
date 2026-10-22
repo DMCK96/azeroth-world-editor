@@ -5,6 +5,7 @@ import type { MapApi } from './map';
 import type { EntitiesApi } from './entities';
 import type { WorldLayerApi } from './world-layer';
 import type { SpawnGroupsApi } from './spawn-groups';
+import type { WoodcuttingApi } from './woodcutting';
 import type { HistoryApi } from './history';
 import type { ExportApi } from './export';
 import type { ProjectApi } from './project';
@@ -24,6 +25,7 @@ export interface Api
     EntitiesApi,
     WorldLayerApi,
     SpawnGroupsApi,
+    WoodcuttingApi,
     HistoryApi,
     ExportApi,
     ProjectApi,

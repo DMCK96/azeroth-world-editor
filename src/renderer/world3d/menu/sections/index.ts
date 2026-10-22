@@ -1,6 +1,7 @@
 import type { MenuSection } from '../section';
 import { busy } from './busy';
 import { create } from './create';
+import { woodcutting } from './woodcutting';
 import { edit } from './edit';
 import { loot } from './loot';
 import { vendor } from './vendor';
@@ -21,5 +22,5 @@ import { vesselStops } from './vessel-stops';
 
 /** Every section of the right-click menu, in the order their items are shown */
 export const SECTIONS: readonly MenuSection[] = [
-  busy, create, edit, loot, vendor, trainer, gossip, scripts, clipboard, coordinates, respawn, spawnEvents, spawnGroup, deletion, movement, routePoint, questParts, questSpawns, vesselStops,
+  busy, create, woodcutting, edit, loot, vendor, trainer, gossip, scripts, clipboard, coordinates, respawn, spawnEvents, spawnGroup, deletion, movement, routePoint, questParts, questSpawns, vesselStops,
 ];
