@@ -12,7 +12,7 @@ describe('parseRequest', () => {
       'testConnection', 'validate', 'questScripts', 'testCommands', 'groundHeight', 'spellFacts', 'clientMaps', 'mapFloors', 'viewSpawns', 'entitySpawns', 'findSpawns', 'spawnPlacement', 'allocateIds', 'entityTemplate', 'itemColumns',
       'patrolPathId', 'renameProject', 'newProject', 'openProject', 'saveProject', 'saveProjectAs', 'recentProjects', 'forgetRecent', 'recoveries', 'restoreRecovery', 'discardRecovery',
       'projectEntities', 'putProjectEntities', 'deleteEntity', 'readExistingEntity', 'existingDrift', 'worldLayer', 'worldMoveSpawn', 'worldAddSpawn', 'worldRoute', 'worldSetRoute', 'worldRevert', 'worldDeleteSpawn', 'worldChanges', 'exportProject', 'worldSetMovement', 'worldSetRespawn', 'worldSetSpawnEvents', 'worldNewPathId', 'questSpawnList',
-      'worldGroup', 'worldGroupView', 'worldGroupSpawns', 'worldGroupsOnMap', 'worldNewGroupId', 'worldCheckGroup', 'worldSetGroup', 'worldDeleteGroup', 'worldDropMember', 'questPools', 'gameEvents',
+      'worldGroup', 'worldGroupView', 'worldGroupSpawns', 'worldGroupsOnMap', 'worldNewGroupId', 'worldWoodcuttingTrees', 'worldNearestWoodcuttingTree', 'worldCheckGroup', 'worldSetGroup', 'worldDeleteGroup', 'worldDropMember', 'questPools', 'gameEvents',
       'historyList', 'historyUndo', 'historyRedo', 'historyJump', 'historyBegin', 'historyEnd',
       'mcpStatus', 'mcpConfigure', 'mcpRegenerateToken',
       'questsInZone', 'questSummaries', 'areaOverview', 'checkNames', 'checkIds', 'wikiSearch', 'wikiPage', 'projectIssues',

@@ -62,6 +62,25 @@ describe('the 3D view’s right-click menu', () => {
     expect(onPick).toHaveBeenCalledWith({ kind: 'showSpawns', scope: 'quest' });
   });
 
+  it('opens a submenu inside a submenu with the right arrow, and the left arrow closes the inner one first', async () => {
+    const onPick = vi.fn();
+    const onClose = vi.fn();
+    const tiers: MenuGroup[] = [{ id: 'world', items: [{ id: 'trees', label: 'Trees', children: [
+      { id: 'wild', label: 'Wildwood', children: [{ id: 'tree-1', label: 'Redridge Tree', action: { kind: 'placeTree', entry: 1, name: 'Redridge Tree', at } }] },
+    ] }] }];
+    render(<WorldContextMenu groups={tiers} at={{ x: 10, y: 20 }} onPick={onPick} onClose={onClose} />);
+    await userEvent.keyboard('{ArrowRight}');
+    expect(screen.getByRole('menuitem', { name: 'Wildwood' })).toHaveFocus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(screen.getByRole('menuitem', { name: 'Redridge Tree' })).toHaveFocus();
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(screen.queryByRole('menuitem', { name: 'Redridge Tree' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Wildwood' })).toHaveFocus();
+    await userEvent.keyboard('{ArrowRight}{Enter}');
+    expect(onPick).toHaveBeenCalledWith({ kind: 'placeTree', entry: 1, name: 'Redridge Tree', at });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('shows a check on a checked item', () => {
     open();
     expect(screen.getByRole('menuitemcheckbox', { name: 'Quest giver' })).toHaveAttribute('aria-checked', 'true');

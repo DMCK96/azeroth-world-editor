@@ -5,6 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { NamesProvider } from '../../src/renderer/state/names';
 import { makeMockApi, okv, errv } from './mock-api';
 import { clearClipboard } from '../../src/renderer/world3d/clipboard';
+import { NO_TREE_NEAR } from '../../src/renderer/world3d/useWorldMenu';
 
 const worlds = vi.hoisted(() => [] as any[]);
 vi.mock('../../src/renderer/world3d/world3d', () => ({
@@ -381,3 +382,51 @@ describe('the right-click menu in the 3D view', () => {
     await waitFor(() => expect(api.historyEnd).toHaveBeenCalledTimes(1));
   });
 });
+
+describe('woodcutting trees in the right-click menu', () => {
+  const trees = [
+    { entry: 244614, name: 'Elwynn Tree', tier: 'Forestwood', tierRank: 8210210 },
+    { entry: 244616, name: 'Redridge Tree', tier: 'Wildwood', tierRank: 8210211 },
+  ];
+  /** A view whose database has the trees, with the menu opened on the ground once they are read */
+  async function withTrees(overrides: Record<string, unknown> = {}) {
+    const found = await view({ worldWoodcuttingTrees: vi.fn(async () => okv(trees)), ...overrides });
+    await waitFor(() => expect(found.api.worldWoodcuttingTrees).toHaveBeenCalled());
+    await act(async () => {});
+    rightClick(found.world, { ground: at, hit: null, selection: [] });
+    return found;
+  }
+
+  it('offers none in a database without them', async () => {
+    const { world } = await view();
+    await act(async () => {});
+    rightClick(world, { ground: at, hit: null, selection: [] });
+    expect(screen.queryByRole('menuitem', { name: /woodcutting tree/i })).toBeNull();
+  });
+
+  it('puts down the kind of tree nearest here, as one undo step', async () => {
+    const { api } = await withTrees({ worldNearestWoodcuttingTree: vi.fn(async () => okv(244616)) });
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Spawn woodcutting tree here' }));
+    await waitFor(() => expect(api.worldAddSpawn).toHaveBeenCalledWith('gameobject', 244616, 0, expect.objectContaining({ x: 1, y: 2, z: 3 })));
+    expect(api.worldNearestWoodcuttingTree).toHaveBeenCalledWith(0, 1, 2);
+    await waitFor(() => expect(api.historyEnd).toHaveBeenCalledTimes(1));
+    expect(api.historyBegin).toHaveBeenCalledWith('Spawn Redridge Tree', undefined);
+  });
+
+  it('says so, and places nothing, when no tree is near', async () => {
+    const { api } = await withTrees({ worldNearestWoodcuttingTree: vi.fn(async () => okv(null)) });
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Spawn woodcutting tree here' }));
+    expect(await screen.findByText(NO_TREE_NEAR)).toBeTruthy();
+    expect(api.worldAddSpawn).not.toHaveBeenCalled();
+  });
+
+  it('puts down the tree picked from the submenu, by tier then name', async () => {
+    const { api } = await withTrees();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Woodcutting tree' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Wildwood' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: /Redridge Tree/ }));
+    await waitFor(() => expect(api.worldAddSpawn).toHaveBeenCalledWith('gameobject', 244616, 0, expect.objectContaining({ x: 1, y: 2, z: 3 })));
+    expect(api.worldNearestWoodcuttingTree).not.toHaveBeenCalled();
+  });
+});
+

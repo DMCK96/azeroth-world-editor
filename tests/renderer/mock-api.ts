@@ -147,6 +147,8 @@ export function makeMockApi(overrides: Partial<Record<keyof Api, (...args: any[]
     worldGroupSpawns: vi.fn(async () => okv([])),
     worldGroupsOnMap: vi.fn(async () => okv([])),
     worldNewGroupId: vi.fn(async () => okv(900001)),
+    worldWoodcuttingTrees: vi.fn(async () => okv([])),
+    worldNearestWoodcuttingTree: vi.fn(async () => okv(null)),
     worldCheckGroup: vi.fn(async () => okv({ reasons: [], notes: [] })),
     worldSetGroup: vi.fn(async () => okv({ spawns: [], routes: [], added: [] })),
     worldDeleteGroup: vi.fn(async () => okv({ spawns: [], routes: [], added: [] })),

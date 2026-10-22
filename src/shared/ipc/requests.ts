@@ -206,6 +206,8 @@ const REQUEST_SCHEMAS: Record<keyof Api, z.ZodType<unknown[]>> = {
   worldGroupSpawns: z.tuple([z.number().int().min(1)]),
   worldGroupsOnMap: z.tuple([z.number().int().min(0)]),
   worldNewGroupId: z.tuple([]),
+  worldWoodcuttingTrees: z.tuple([]),
+  worldNearestWoodcuttingTree: z.tuple([z.number().int().min(0), z.number(), z.number()]),
   worldCheckGroup: z.tuple([spawnGroupArg, groupMovesArg]),
   worldSetGroup: z.tuple([spawnGroupArg, groupMovesArg]),
   worldDeleteGroup: z.tuple([z.number().int().min(1)]),

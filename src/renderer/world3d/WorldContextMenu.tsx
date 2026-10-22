@@ -20,7 +20,7 @@ function step(menu: HTMLElement | null, by: 1 | -1): void {
 /**
  * The 3D view's right-click menu: the groups the target offers, separated, at the cursor and kept
  * inside the window. An item that cannot run says why and does nothing; one with children opens a
- * submenu (hover, → or Enter). Esc closes it and goes no further, and so does a click outside.
+ * submenu (hover, → or Enter), which may open another. Esc closes it and goes no further, and so does a click outside.
  */
 export function WorldContextMenu({
   groups,
@@ -82,6 +82,18 @@ export function WorldContextMenu({
         </Fragment>
       ))}
     </div>
+  );
+}
+
+/** A submenu's items, one of which may have its own submenu open (a tier of trees opens its trees) */
+function Items({ items, onPick }: { items: MenuItem[]; onPick(action: MenuAction): void }): React.JSX.Element {
+  const [open, setOpen] = useState<string | null>(null);
+  return (
+    <>
+      {items.map((item) => (
+        <Item key={item.id} item={item} open={open === item.id} onOpen={(yes) => setOpen(yes ? item.id : null)} onPick={onPick} />
+      ))}
+    </>
   );
 }
 
@@ -186,9 +198,7 @@ function Item({ item, open, onOpen, onPick }: { item: MenuItem; open: boolean; o
               }
             }}
           >
-            {item.children!.map((child) => (
-              <Item key={child.id} item={child} open={false} onOpen={() => {}} onPick={onPick} />
-            ))}
+            <Items items={item.children!} onPick={onPick} />
           </div>,
           document.body,
         )}

@@ -13,7 +13,7 @@ const crate = (over: Partial<MenuSpawn> = {}): MenuSpawn => npc({ kind: 'object'
 const hela = npc({ guid: 6000001, entry: 12000001, name: 'Hela', own: true });
 const chest = crate({ guid: 7000001, entry: 9100001, own: true });
 const store: ProjectEntities = { ...EMPTY_ENTITIES, npcs: [{ ...newNpc(12000001), name: 'Hela' }], objects: [{ ...newObject(9100001), name: 'Crate' }] };
-const context = (over: Partial<MenuContext> = {}): MenuContext => ({ map: 0, connected: true, clipboard: { count: 0, blocked: null }, placing: false, drawing: null, quest: null, project: true, marked: false, vessel: false, ...over });
+const context = (over: Partial<MenuContext> = {}): MenuContext => ({ map: 0, connected: true, clipboard: { count: 0, blocked: null }, placing: false, drawing: null, quest: null, project: true, marked: false, vessel: false, woodcutting: [], ...over });
 const ground = (selection: MenuSpawn[] = []): MenuSubject => subjectOf({ ground: at, hit: null, selection }, store);
 const sky: MenuSubject = subjectOf({ ground: null, hit: null, selection: [] }, store);
 const on = (spawn: MenuSpawn, s: ProjectEntities = store): MenuSubject => subjectOf({ ground: at, hit: { type: 'spawn', spawn }, selection: [spawn] } as MenuTarget, s);
@@ -32,6 +32,42 @@ describe('a vessel under the right-click', () => {
     expect(item(buildMenu(withVessel({ type: 'spawn', spawn: npc() }), context()), 'Show stops…')).toBeDefined();
     expect(item(buildMenu(ground(), context()), 'Show stops…')).toBeUndefined();
     expect(item(buildMenu(withVessel(null), context({ placing: true })), 'Show stops…')).toBeUndefined();
+  });
+});
+
+describe('woodcutting trees on the ground', () => {
+  const tree = (entry: number, name: string, tier: string, tierRank: number) => ({ entry, name, tier, tierRank });
+  const trees = [tree(244616, 'Redridge Tree', 'Wildwood', 8210211), tree(244614, 'Elwynn Tree', 'Forestwood', 8210210), tree(1244636, 'Stonetalon Tree', 'Wildwood', 8210211), tree(244636, 'Stonetalon Tree', 'Wildwood', 8210211)];
+
+  it('offers nothing in a database without them', () => {
+    expect(flat(buildMenu(ground(), context())).filter((i) => /tree/i.test(i.label))).toEqual([]);
+  });
+
+  it('offers nothing offline, and nothing while placing', () => {
+    expect(flat(buildMenu(ground(), context({ woodcutting: trees, connected: false }))).filter((i) => /tree/i.test(i.label))).toEqual([]);
+    expect(flat(buildMenu(ground(), context({ woodcutting: trees, placing: true }))).filter((i) => /tree/i.test(i.label))).toEqual([]);
+  });
+
+  it('puts the nearest tree here, or lists every tree by tier, then by name', () => {
+    const groups = buildMenu(ground(), context({ woodcutting: trees }));
+    expect(item(groups, 'Spawn woodcutting tree here')!.action).toEqual({ kind: 'placeNearestTree', at });
+    const submenu = item(groups, 'Woodcutting tree')!;
+    expect(submenu.action).toBeUndefined();
+    expect(submenu.children!.map((tier) => [tier.label, tier.children!.map((t) => t.label)])).toEqual([
+      ['Forestwood', ['Elwynn Tree']],
+      ['Wildwood', ['Redridge Tree', 'Stonetalon Tree', 'Stonetalon Tree']],
+    ]);
+    const stonetalon = submenu.children![1]!.children!.filter((t) => t.label === 'Stonetalon Tree');
+    expect(stonetalon.map((t) => t.action)).toEqual([{ kind: 'placeTree', entry: 244636, name: 'Stonetalon Tree', at }, { kind: 'placeTree', entry: 1244636, name: 'Stonetalon Tree', at }]);
+    // Two trees of one name stay apart by their entry
+    expect(stonetalon.map((t) => t.hint)).toEqual(['244636', '1244636']);
+    expect(new Set(all(submenu.children!).map((i) => i.id)).size).toBe(all(submenu.children!).length);
+  });
+
+  it('the sky disables them', () => {
+    const groups = buildMenu(sky, context({ woodcutting: trees }));
+    expect(item(groups, 'Spawn woodcutting tree here')!.disabledReason).toBe('Right-click the ground');
+    expect(item(groups, 'Woodcutting tree')!.disabledReason).toBe('Right-click the ground');
   });
 });
 
@@ -55,7 +91,7 @@ describe('a route point', () => {
 
 describe('the builder', () => {
   it('registers the sections in the spec order', () => {
-    expect(SECTIONS.map((s) => s.id)).toEqual(['busy', 'create', 'edit', 'loot', 'vendor', 'trainer', 'gossip', 'scripts', 'clipboard', 'coordinates', 'respawn', 'spawn-events', 'spawn-group', 'delete', 'movement', 'route-point', 'quest-parts', 'quest-spawns', 'vessel-stops']);
+    expect(SECTIONS.map((s) => s.id)).toEqual(['busy', 'create', 'woodcutting', 'edit', 'loot', 'vendor', 'trainer', 'gossip', 'scripts', 'clipboard', 'coordinates', 'respawn', 'spawn-events', 'spawn-group', 'delete', 'movement', 'route-point', 'quest-parts', 'quest-spawns', 'vessel-stops']);
   });
 
   it('runs only sections that apply, joins those of one group, and drops empty groups', () => {
