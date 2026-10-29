@@ -1,0 +1,155 @@
+/* The merge preview: wider than the other dialogs, since it shows both sides of each item */
+.modal.merge-dialog {
+  width: min(52em, 100%);
+}
+
+.merge-dialog__intro,
+.merge-dialog__two-way {
+  margin: 0 0 0.8em;
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
+
+.merge-dialog__two-way {
+  color: var(--text);
+}
+
+.merge-dialog__files {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  margin-bottom: 0.8em;
+}
+
+.merge-dialog__file {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.5em 0.7em;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.merge-dialog__file-role {
+  flex: none;
+  width: 8em;
+  font-weight: 600;
+}
+
+.merge-dialog__file-path {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85em;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.merge-dialog__none {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 0.9em;
+}
+
+.merge-dialog__list {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 0.9em;
+}
+
+.merge-dialog__from {
+  font-weight: 600;
+  color: var(--red);
+}
+
+.merge-dialog__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85em;
+}
+
+.merge-dialog__table th,
+.merge-dialog__table td {
+  padding: 0.25em 0.5em;
+  text-align: left;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.merge-dialog__table thead th {
+  color: var(--text-muted);
+  font-weight: normal;
+}
+
+.merge-dialog__table td {
+  word-break: break-word;
+}
+
+.merge-dialog__kind {
+  margin: 0.8em 0 0.4em;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.merge-dialog__decision {
+  margin: 0 0 0.6em;
+  padding: 0.6em 0.8em;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+}
+
+.merge-dialog__decision legend {
+  padding: 0 0.3em;
+  font-size: 0.9em;
+}
+
+.merge-dialog__entry {
+  margin-bottom: 0.5em;
+}
+
+.merge-dialog__sides {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15em 0.8em;
+  margin: 0 0 0.4em;
+  font-size: 0.85em;
+}
+
+.merge-dialog__sides dt {
+  color: var(--text-muted);
+}
+
+.merge-dialog__sides dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.merge-dialog__rewrites p {
+  margin: 0.3em 0;
+  font-size: 0.85em;
+  color: var(--text-muted);
+}
+
+.merge-dialog__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em 1.2em;
+  margin-top: 0.4em;
+  font-size: 0.9em;
+}
+
+.merge-dialog__options label {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  cursor: pointer;
+}
+
+.merge-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6em;
+  margin-top: 1em;
+}

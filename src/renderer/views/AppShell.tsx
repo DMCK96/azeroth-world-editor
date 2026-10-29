@@ -16,6 +16,7 @@ import { ProjectDialog } from './ProjectDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { RecoveryDialog } from './RecoveryDialog';
 import { IdConflictDialog } from './IdConflictDialog';
+import { MergeDialog } from './MergeDialog';
 import './AppShell.css';
 
 /**
@@ -185,6 +186,7 @@ export function AppShell({ store }: { store: AppStore }): React.JSX.Element {
       {showSettings && <SettingsDialog store={store} onClose={() => setShowSettings(false)} />}
       <RecoveryDialog store={store} />
       <IdConflictDialog store={store} />
+      <MergeDialog store={store} />
     </div>
     </PlaceInWorldProvider>
     </ShowInWorldProvider>

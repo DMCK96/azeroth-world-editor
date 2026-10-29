@@ -11,6 +11,7 @@ import { createWorldSlice } from './app/world';
 import { createExportSlice } from './app/export';
 import { createProjectSlice } from './app/project';
 import { createIdsSlice } from './app/ids';
+import { createMergeSlice } from './app/merge';
 import { createHistorySlice } from './app/history';
 import { createFocusSlice } from './app/focus';
 import { createLinksEditSlice } from './app/links-edit';
@@ -42,6 +43,7 @@ export function createAppStore(api: Api, opts: { saveDelayMs?: number } = {}): A
       ...createExportSlice(args),
       ...createProjectSlice(args),
       ...createIdsSlice(args),
+      ...createMergeSlice(args),
       ...createHistorySlice(args),
       ...createFocusSlice(args),
       ...createLinksEditSlice(args),

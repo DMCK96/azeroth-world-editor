@@ -25,6 +25,8 @@ export interface ProjectSlice {
   /** Restores one crash copy and discards every other one listed: only one project can be open. */
   restoreRecovery(id: string): Promise<void>;
   discardRecovery(id: string): Promise<void>;
+  /** The main process has opened a different project (a merge, say): forgets the old one and loads the new, as Open does */
+  projectSwitched(): Promise<void>;
 }
 
 export function createProjectSlice({ api, kit, set, get }: SliceArgs): ProjectSlice {
@@ -154,5 +156,6 @@ export function createProjectSlice({ api, kit, set, get }: SliceArgs): ProjectSl
       }
       set((s) => ({ recoveries: s.recoveries.filter((r) => r.id !== id) }));
     },
+    projectSwitched: switchedProject,
   };
 }
