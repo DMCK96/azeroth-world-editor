@@ -9,6 +9,7 @@ export const npcKind = listKind<CustomNpc>({
   key: 'npc',
   label: 'NPCs',
   canCollide: true,
+  allocated: (e) => e.origin.kind === 'new',
   list: (doc) => doc.entities.npcs,
   keyOf: (e) => String(e.entry),
   put: (doc, npcs) => ({ ...doc, entities: { ...doc.entities, npcs } }),

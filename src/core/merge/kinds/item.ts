@@ -9,6 +9,7 @@ export const itemKind = listKind<CustomItem>({
   key: 'item',
   label: 'Items',
   canCollide: true,
+  allocated: (e) => e.origin.kind === 'new',
   list: (doc) => doc.entities.items,
   keyOf: (e) => String(e.entry),
   put: (doc, items) => ({ ...doc, entities: { ...doc.entities, items } }),

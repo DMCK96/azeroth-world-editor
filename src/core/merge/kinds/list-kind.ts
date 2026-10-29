@@ -7,6 +7,7 @@ export interface ListKindSpec<T> {
   label: string;
   canCollide?: boolean;
   removesIdentity?: boolean;
+  allocated?: MergeKind<T>['allocated'];
   list(doc: MergeDocument): readonly T[];
   keyOf(item: T): string;
   put(doc: MergeDocument, items: T[]): MergeDocument;
@@ -42,6 +43,7 @@ export function listKind<T>(spec: ListKindSpec<T>): MergeKind<T> {
     },
     write: (doc, items) => spec.put(doc, [...items].sort(byKey).map(([, item]) => item)),
     ...(spec.removesIdentity !== undefined && { removesIdentity: spec.removesIdentity }),
+    ...(spec.allocated && { allocated: spec.allocated }),
     ...(spec.identity && { identity: spec.identity }),
     ...(spec.references && { references: spec.references }),
     ...(spec.renumber && { renumber: spec.renumber }),

@@ -19,6 +19,12 @@ export interface MergeKind<T = unknown> {
   readonly canCollide: boolean;
   /** Set on the one kind whose items are removals of an identity (deleted database spawns). */
   readonly removesIdentity?: boolean;
+  /**
+   * Whether the project allocated the item's key (true when absent). Only allocated items can
+   * collide: an existing database item edited on both sides is a conflict, since keeping both
+   * would renumber a database id.
+   */
+  allocated?(item: T): boolean;
   items(doc: MergeDocument): Map<string, T>;
   same(a: T, b: T): boolean;
   describe(item: T): string;

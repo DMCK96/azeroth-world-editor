@@ -29,6 +29,7 @@ export const groupKind = listKind<SpawnGroup>({
   key: 'group',
   label: 'Groups',
   canCollide: true,
+  allocated: (g) => g.origin.kind === 'new',
   list: (doc) => groupsOf(doc.world),
   keyOf: (g) => String(g.id),
   put: (doc, groups) => ({ ...doc, world: { ...doc.world, groups } }),

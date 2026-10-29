@@ -11,6 +11,7 @@ export const questKind = listKind<MergeQuest>({
   key: 'quest',
   label: 'Quests',
   canCollide: true,
+  allocated: (q) => q.isNew,
   list: (doc) => doc.quests,
   keyOf: (q) => String(q.questId),
   put: (doc, quests) => ({ ...doc, quests }),
