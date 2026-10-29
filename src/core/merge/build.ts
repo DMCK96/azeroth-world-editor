@@ -3,6 +3,9 @@ import type { MergeKind } from './kind';
 import { MERGE_KINDS } from './kinds';
 import { planMerge, type Choice, type Choices, type Decision, type MergeInputs, type MergePlan, type PlanEntry } from './plan';
 import { checkReferences } from './references';
+import { findDuplicateIds } from './duplicate-ids';
+import { spreadSpawnGuids } from './spawn-guids';
+import { spawnGuidKind } from '../ids/kinds/spawn-guid';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyKind = MergeKind<any>;
@@ -53,8 +56,12 @@ interface Resolved {
   plan: MergePlan;
   /** The plan over the renumbered theirs, which the result is built from */
   plan2: MergePlan;
-  /** Theirs with every keep-both collision moved to its new key */
+  /** Theirs with every keep-both collision moved to its new key, and its spawns off guids mine uses */
   theirs2: MergeDocument;
+  /** Every decision of every round's plan, each as first seen, in order */
+  decisions: Decision[];
+  /** One line per spawn of theirs moved to a free guid */
+  moves: string[];
   /** Decision ids that have a choice or a default */
   settledIds: Set<string>;
   /** Decision ids with neither, in plan order */
@@ -93,26 +100,44 @@ function resolve(inputs: MergeInputs, choices: Choices, kinds: readonly AnyKind[
   };
   for (const decision of plan.decisions) settle(decision);
 
-  // Keep-both collisions move theirs to the plan's new key, in decision order
+  // Each round moves theirs: keep-both collisions to their new keys, in decision order, then, once no
+  // collision is left to renumber, its spawns off guids mine uses. A renumber can bring up a collision
+  // of its own (theirs' spawn of a renumbered NPC now differs from mine's), so the rounds go on until
+  // one moves nothing. Each round settles at least one id, so the items bound them.
   let theirs2 = inputs.theirs;
+  let plan2 = plan;
   const renumbered = new Set<string>();
-  for (const decision of plan.decisions) {
-    if (decision.type !== 'collision' || picks.get(decision.id) !== 'both' || decision.newKey === null) continue;
-    const [kindKey, key] = splitId(decision.id);
-    const kind = byKind.get(kindKey);
-    if (!kind?.renumber) continue;
-    theirs2 = kind.renumber(theirs2, key, decision.newKey);
-    renumbered.add(`${kindKey}|${decision.newKey}`);
+  const decisions = [...plan.decisions];
+  const moves: string[] = [];
+  const bound = kinds.reduce((n, kind) => n + kind.items(inputs.theirs).size, 0) + spawnGuidKind.claims(inputs.theirs).length + 1;
+  for (let round = 0; ; round++) {
+    if (round > bound) throw new Error(`The merge could not give every kept-both item its own id after ${bound} rounds.`);
+    let next = theirs2;
+    for (const decision of plan2.decisions) {
+      if (decision.type !== 'collision' || picks.get(decision.id) !== 'both' || decision.newKey === null) continue;
+      const [kindKey, key] = splitId(decision.id);
+      const kind = byKind.get(kindKey);
+      if (!kind?.renumber) continue;
+      next = kind.renumber(next, key, decision.newKey);
+      renumbered.add(`${kindKey}|${decision.newKey}`);
+    }
+    if (next === theirs2) {
+      const spread = spreadSpawnGuids(inputs.base, inputs.mine, theirs2, plan2, picks);
+      if (spread.doc === theirs2) break;
+      next = spread.doc;
+      moves.push(...spread.moves);
+      for (const id of spread.movedPlaced) renumbered.add(id);
+    }
+    theirs2 = next;
+    plan2 = planMerge({ ...inputs, theirs: theirs2 }, kinds);
+    // A decision a renumber leaves in place keeps its choice; one it brings up is settled on its own
+    const known = new Set(decisions.map((d) => d.id));
+    for (const decision of plan2.decisions) {
+      settle(decision);
+      if (!known.has(decision.id)) decisions.push(decision);
+    }
   }
-
-  const plan2 = theirs2 === inputs.theirs ? plan : planMerge({ ...inputs, theirs: theirs2 }, kinds);
-  // A decision the renumber leaves in place keeps its choice; one it brings up is settled on its own
-  const first = new Map(plan.decisions.map((d) => [d.id, d]));
-  for (const decision of plan2.decisions) {
-    if (first.has(decision.id)) continue;
-    settle(decision);
-  }
-  return { plan, plan2, theirs2, settledIds, unsettled, picks, renumbered };
+  return { plan, plan2, theirs2, decisions, moves, settledIds, unsettled, picks, renumbered };
 }
 
 /** Which side an entry's item comes from; a keep-both left in the second plan has no new key and keeps mine */
@@ -234,14 +259,13 @@ export function previewMerge(inputs: MergeInputs, choices: Choices, kinds: reado
   const r = resolve(inputs, choices, kinds);
   const result = build(inputs, r, kinds);
   const sources = [inputs.base, inputs.mine, inputs.theirs, r.theirs2].filter((d): d is MergeDocument => d !== null);
-  const known = new Set(r.plan.decisions.map((d) => d.id));
   return {
     twoWay: r.plan.twoWay,
     summary: summaryOf(r, kinds, inputs),
     dropped: droppedOf(r, kinds, inputs),
-    decisions: [...r.plan.decisions, ...r.plan2.decisions.filter((d) => !known.has(d.id))],
+    decisions: r.decisions,
     entries: r.plan.entries,
     settled: r.unsettled.length === 0,
-    warnings: [...r.plan.warnings, ...staleReferences(r, kinds, inputs), ...checkReferences(result, sources, kinds)],
+    warnings: [...r.plan.warnings, ...r.moves, ...staleReferences(r, kinds, inputs), ...checkReferences(result, sources, kinds), ...findDuplicateIds(result)],
   };
 }

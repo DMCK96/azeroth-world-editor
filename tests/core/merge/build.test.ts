@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyMerge, previewMerge, UnsettledConflictError } from '../../../src/core/merge/build';
+import { newNpc } from '../../../src/core/entities/model';
 import { docOf, emptyDoc, placed, quest } from './helpers';
 
 const withQuests = (...q: ReturnType<typeof quest>[]) => docOf({ quests: q });
@@ -59,6 +60,19 @@ describe('applyMerge', () => {
     expect(title(out, 60001)).toBe('mine');
     expect(title(out, 60002)).toBe('theirs');
     expect((out.world.groups![0]!.members[0] as any).questId).toBe(60002);
+  });
+
+  it('keeps both of a collision that only shows once another collision is renumbered', () => {
+    const npc = (name: string) => ({ ...newNpc(90001), name });
+    const side = (name: string) => docOf({ entities: { npcs: [npc(name)], objects: [], items: [] }, world: { spawns: [], routes: [], added: [placed(700, 90001)] } });
+    const inputs = { base: emptyDoc(), mine: side('Mine'), theirs: side('Theirs') };
+    const out = applyMerge(inputs, {});
+    expect(out.world.added.map((a) => [a.guid, a.entry])).toEqual([[700, 90001], [701, 90002]]);
+    const preview = previewMerge(inputs, {});
+    expect(preview.decisions.map((d) => [d.id, d.newKey])).toEqual([['npc|90001', '90002'], ['placed-spawn|creature:700', 'creature:701']]);
+    expect(preview.settled).toBe(true);
+    expect(preview.dropped).toEqual([]);
+    expect(preview.summary.find((r) => r.kind === 'placed-spawn')).toMatchObject({ fromMine: 1, renumbered: 1, total: 2 });
   });
 
   it('uses distinct new ids for several collisions', () => {

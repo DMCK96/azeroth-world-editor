@@ -4,6 +4,8 @@ export type { Choice, Choices, Decision, MergeInputs, MergePlan, PlanEntry } fro
 export { applyMerge, previewMerge, UnsettledConflictError } from './build';
 export type { Dropped, MergePreview, SummaryRow } from './build';
 export { checkReferences } from './references';
+export { findDuplicateIds, ID_FAMILIES } from './duplicate-ids';
+export type { IdFamily, IdHolder } from './duplicate-ids';
 export { notCarriedOver } from './not-carried';
 export type { MetaLine } from './not-carried';
 export { MERGE_KINDS } from './kinds';
