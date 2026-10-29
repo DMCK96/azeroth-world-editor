@@ -3,6 +3,8 @@ import type { MergeQuest } from '../doc';
 import type { Ref } from '../kind';
 import { stableJson } from '../stable';
 import { listKind } from './list-kind';
+import { renameQuest } from './quest-refs';
+import { freeAbove } from './refs';
 
 /** A quest of the project. Where it sits on the canvas, its snapshot and its fidelity report never count. */
 export const questKind = listKind<MergeQuest>({
@@ -20,4 +22,6 @@ export const questKind = listKind<MergeQuest>({
     const refs = (kind: string, entries: number[]): Ref[] => entries.map((entry) => ({ kind, key: String(entry) }));
     return [...refs('npc', use.npcs), ...refs('object', use.objects), ...refs('item', use.items)];
   },
+  renumber: (doc, from, to) => renameQuest(doc, Number(from), Number(to)),
+  freeKey: (_from, docs) => freeAbove(docs.flatMap((d) => d.quests.map((q) => q.questId))),
 });
