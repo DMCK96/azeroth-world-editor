@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { defineTool } from '../tool';
+import { flushed } from '../write-guard';
 
 const choice = z.enum(['mine', 'theirs', 'both']);
 
@@ -19,7 +20,11 @@ export const mergeTools = [
     description: `Previews merging another project file into the open one. ${RULES} Returns the summary, what is dropped, the decisions still to make (with options and defaults), what is not carried over, warnings, whether the merge is settled, and a fingerprint to pass to merge_write.`,
     input: files,
     write: false,
-    run: ({ theirsPath, basePath, choices }, ctx) => ctx.call('mergePreview', { theirsPath, basePath: basePath ?? null }, choices),
+    // Not a project write, so the guard does not flush: mine must still hold the window's pending edits
+    run: async ({ theirsPath, basePath, choices }, ctx) => {
+      await flushed(ctx);
+      return ctx.call('mergePreview', { theirsPath, basePath: basePath ?? null }, choices);
+    },
     present: (p) => ({
       summary: p.summary,
       dropped: p.dropped,
@@ -40,7 +45,9 @@ export const mergeTools = [
       outputPath: z.string().min(1).describe('Where to write the merged .awe file. It must not already exist.'),
     },
     write: false,
-    run: ({ theirsPath, basePath, choices, fingerprint, outputPath }, ctx) =>
-      ctx.call('mergeWrite', { theirsPath, basePath: basePath ?? null }, choices, fingerprint, outputPath),
+    run: async ({ theirsPath, basePath, choices, fingerprint, outputPath }, ctx) => {
+      await flushed(ctx);
+      return ctx.call('mergeWrite', { theirsPath, basePath: basePath ?? null }, choices, fingerprint, outputPath);
+    },
   }),
 ];

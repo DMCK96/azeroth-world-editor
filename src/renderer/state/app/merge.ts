@@ -1,4 +1,5 @@
 import type { Choice, Choices, MergePreviewResult } from '@shared/ipc';
+import { MERGE_STALE_MESSAGE } from '@shared/ipc/merge';
 import type { SliceArgs } from './types';
 
 /** Merging another project file (theirs, with the base both started from) into the open one */
@@ -41,12 +42,16 @@ export function createMergeSlice({ api, set, get }: SliceArgs): MergeSlice {
   /** Asks for the preview of the files and choices as they are now */
   async function refresh(): Promise<void> {
     const mine = ++latest;
-    const { theirsPath, basePath, choices } = get().merge;
-    if (theirsPath === null) {
+    if (get().merge.theirsPath === null) {
       patch({ preview: null, busy: false });
       return;
     }
     patch({ busy: true });
+    // An edit still waiting out its delay belongs in mine, or the preview's fingerprint is stale before apply
+    await get().flushAll();
+    if (mine !== latest) return;
+    const { theirsPath, basePath, choices } = get().merge;
+    if (theirsPath === null) return;
     const result = await api.mergePreview({ theirsPath, basePath }, choices);
     if (mine !== latest) return;
     if (!result.ok) {
@@ -100,6 +105,8 @@ export function createMergeSlice({ api, set, get }: SliceArgs): MergeSlice {
         // Includes the user keeping the open project's unsaved changes: the dialog stays, so nothing chosen is lost
         set({ error: result.error.message });
         patch({ busy: false });
+        // A file or mine changed since the preview: preview again with the same choices, so the user can merge again
+        if (result.error.message === MERGE_STALE_MESSAGE) await refresh();
         return;
       }
       set({ merge: closed });

@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
+import { resolve } from 'node:path';
 import { applyMerge, notCarriedOver, previewMerge, UnsettledConflictError, type Choices, type MergeDocument } from '../../core/merge';
 import { groupsOf } from '../../core/world/layer';
 import type { MergeFiles, MergePreviewResult, Result } from '../../shared/ipc';
+import { MERGE_STALE_MESSAGE } from '../../shared/ipc/merge';
 import { fail, run } from '../api/errors';
 import type { ProjectController } from '../project/controller';
 import { ProjectFileError, type ProjectDocument } from '../project/project-file';
@@ -24,9 +26,15 @@ interface Inputs {
   fingerprint: string;
 }
 
-const STALE = 'A file changed since the preview. Preview the merge again.';
+const STALE = MERGE_STALE_MESSAGE;
 
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex');
+
+/** A path as the file system tells files apart: resolved, and on Windows without case */
+const fileKey = (path: string): string => (process.platform === 'win32' ? resolve(path).toLowerCase() : resolve(path));
+
+/** Whether two paths name one file, however each is written */
+const sameFile = (a: string | null, b: string | null): boolean => a !== null && b !== null && fileKey(a) === fileKey(b);
 
 /** Every numeric id the merged project holds that comes from the user's id range: quests, new entities and spawn groups */
 function idsOf(doc: MergeDocument): number[] {
@@ -59,9 +67,9 @@ export function createMergeService(deps: { projects: MergeProjects; session: Pro
 
   async function load(files: MergeFiles): Promise<Inputs> {
     const { theirsPath, basePath } = files;
-    if (theirsPath === basePath) throw fail('BAD_REQUEST', `${theirsPath} is chosen as both theirs and the base. Choose two different files.`);
+    if (sameFile(theirsPath, basePath)) throw fail('BAD_REQUEST', `${theirsPath} is chosen as both theirs and the base. Choose two different files.`);
     // Merging the open project's own file into it would only compare the open project with its last save
-    if (theirsPath === session.filePath()) throw fail('BAD_REQUEST', `${theirsPath} is the open project's own file. Choose another project to merge.`);
+    if (sameFile(theirsPath, session.filePath())) throw fail('BAD_REQUEST', `${theirsPath} is the open project's own file. Choose another project to merge.`);
     // Read together with the open project's state, so nothing can change between them
     const [theirs, base] = await Promise.all([readFile(theirsPath), basePath === null ? Promise.resolve(null) : readFile(basePath)]);
     const revision = session.revision();
@@ -115,7 +123,7 @@ export function createMergeService(deps: { projects: MergeProjects; session: Pro
     write: (files, choices, fingerprint, outputPath) =>
       run(async () => {
         const inputsPaths = [files.theirsPath, files.basePath, session.filePath()];
-        if (inputsPaths.includes(outputPath)) throw fail('BAD_REQUEST', `${outputPath} is one of the merged files. Choose a new file for the result.`);
+        if (inputsPaths.some((p) => sameFile(p, outputPath))) throw fail('BAD_REQUEST', `${outputPath} is one of the merged files. Choose a new file for the result.`);
         const doc = await merged(files, choices, fingerprint);
         await projects.writeCopy(outputPath, doc);
         return { written: outputPath };

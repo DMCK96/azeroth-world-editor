@@ -19,6 +19,9 @@ export interface MergePreviewResult extends MergePreviewData {
   fingerprint: string;
 }
 
+/** Why apply or write refuses inputs that changed since the preview; the dialog previews again when it sees it */
+export const MERGE_STALE_MESSAGE = 'A file changed since the preview. Preview the merge again.';
+
 /** Merging another project file into the open one. Never writes the world database or any input file. */
 export interface MergeApi {
   /** The open dialog, for choosing theirs or the base; null when cancelled */

@@ -127,6 +127,7 @@ describe('merge in the store', () => {
     store.setState({ flushAll: async () => { order.push('flush'); } } as never);
     store.getState().openMerge();
     await store.getState().pickMergeFile('theirs');
+    order.length = 0;
     const epoch = store.getState().projectEpoch;
     await store.getState().applyMerge();
     expect(order).toEqual(['flush', 'apply']);
@@ -153,6 +154,36 @@ describe('merge in the store', () => {
     expect(store.getState().merge.busy).toBe(false);
     expect(store.getState().error).toBe("The merged project was not opened: the open project's unsaved changes were kept.");
     expect(store.getState().projectEpoch).toBe(epoch);
+  });
+
+  it('sends pending edits before every preview, so the preview is of mine as it is', async () => {
+    const order: string[] = [];
+    const api = makeMockApi({ mergePickFile: vi.fn(async () => okv('C:\\t.awe')), mergePreview: vi.fn(async () => { order.push('preview'); return okv(preview()); }) });
+    const store = createAppStore(api);
+    store.setState({ flushAll: async () => { order.push('flush'); } } as never);
+    store.getState().openMerge();
+    await store.getState().pickMergeFile('theirs');
+    await store.getState().chooseMerge('quest|1', 'mine');
+    expect(order).toEqual(['flush', 'preview', 'flush', 'preview']);
+  });
+
+  it('a stale apply previews again with the choices kept', async () => {
+    let fingerprint = 'f'.repeat(64);
+    const api = makeMockApi({
+      mergePickFile: vi.fn(async () => okv('C:\\t.awe')),
+      mergePreview: vi.fn(async () => okv(preview({ fingerprint }))),
+      mergeApply: vi.fn(async () => errv('BAD_REQUEST', 'A file changed since the preview. Preview the merge again.')),
+    });
+    const store = createAppStore(api);
+    store.getState().openMerge();
+    await store.getState().pickMergeFile('theirs');
+    await store.getState().chooseMerge('quest|1', 'theirs');
+    fingerprint = 'n'.repeat(64);
+    await store.getState().applyMerge();
+    expect(api.mergePreview).toHaveBeenLastCalledWith({ theirsPath: 'C:\\t.awe', basePath: null }, { 'quest|1': 'theirs' });
+    expect(store.getState().merge).toMatchObject({ open: true, busy: false, choices: { 'quest|1': 'theirs' } });
+    expect(store.getState().merge.preview?.fingerprint).toBe('n'.repeat(64));
+    expect(store.getState().error).toMatch(/changed since the preview/);
   });
 
   it('does not apply while something is unsettled', async () => {

@@ -48,6 +48,28 @@ describe('merge service', () => {
     expect((r as any).error.message).toContain('C:\\same.awe');
   });
 
+  it('refuses the same file for two roles when the paths are written differently', async () => {
+    const f = { doc: docOf('X'), digest: 'd' };
+    const { service, session } = build({ '/work/same.awe': f, '/work/sub/../same.awe': f, '/work/./mine.awe': f });
+    const r = await service.preview({ theirsPath: '/work/sub/../same.awe', basePath: '/work/same.awe' }, {});
+    expect(r).toMatchObject({ ok: false, error: { code: 'BAD_REQUEST' } });
+    session.markSaved('/work/mine.awe');
+    expect(await service.preview({ theirsPath: '/work/./mine.awe', basePath: null }, {})).toMatchObject({ ok: false, error: { code: 'BAD_REQUEST' } });
+  });
+
+  it.runIf(process.platform === 'win32')('compares paths without case or slash differences on Windows', async () => {
+    const f = { doc: docOf('X'), digest: 'd' };
+    const { service, session, written } = build({ 'C:/Work/Same.AWE': f, 'C:\\work\\same.awe': f, 'C:\\t.awe': { doc: docOf('Theirs'), digest: 'd1' } });
+    expect(await service.preview({ theirsPath: 'C:/Work/Same.AWE', basePath: 'C:\\work\\same.awe' }, {})).toMatchObject({ ok: false, error: { code: 'BAD_REQUEST' } });
+    session.markSaved('C:\\Mine.awe');
+    const files = { theirsPath: 'C:\\t.awe', basePath: null };
+    const p = await service.preview(files, {});
+    if (!p.ok) throw new Error('preview failed');
+    expect(await service.write(files, {}, p.value.fingerprint, 'c:/T.awe')).toMatchObject({ ok: false, error: { message: expect.stringContaining('is one of the merged files') } });
+    expect(await service.write(files, {}, p.value.fingerprint, 'c:/mine.AWE')).toMatchObject({ ok: false, error: { message: expect.stringContaining('is one of the merged files') } });
+    expect(written).toEqual([]);
+  });
+
   it('refuses to merge the open project\'s own file into it, naming it', async () => {
     const { service, session } = build({ 'C:\\mine.awe': { doc: docOf('Mine'), digest: 'd' } });
     session.markSaved('C:\\mine.awe');

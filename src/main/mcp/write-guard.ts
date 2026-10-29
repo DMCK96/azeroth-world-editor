@@ -13,7 +13,7 @@ const crashed = (error: unknown): Result<never> => ({
 });
 
 /** Waits for the window to hand over its pending edits, but not past the timeout. False when it did not answer in time. */
-async function flushed(ctx: McpContext): Promise<boolean> {
+export async function flushed(ctx: McpContext): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<boolean>((resolve) => {
     timer = setTimeout(() => resolve(false), ctx.flushTimeoutMs ?? DEFAULT_FLUSH_TIMEOUT_MS);
