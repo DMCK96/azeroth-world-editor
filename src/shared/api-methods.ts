@@ -125,6 +125,10 @@ export const API_METHODS = [
   'updateSkip',
   'updateRemind',
   'updateOpen',
+  'mergePickFile',
+  'mergePreview',
+  'mergeApply',
+  'mergeWrite',
 ] as const satisfies readonly (keyof Api)[];
 
 /** Fails to compile if `Api` gains or loses a method that this list does not follow. */

@@ -25,6 +25,7 @@ export type * from './updates';
 export type * from './lore';
 export type * from './authoring';
 export type * from './ids';
+export type * from './merge';
 export type * from './result';
 export type { Api } from './api';
 export { parseRequest } from './requests';
