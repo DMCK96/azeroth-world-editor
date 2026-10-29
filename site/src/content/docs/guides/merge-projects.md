@@ -43,6 +43,10 @@ Only what an item **is** counts. Where a quest card sits on the canvas, its last
 
 **Keep both** is the default for a collision. Their item is renumbered to a free id (the option names it, for example *Keep both (theirs gets 60003)*), and everything in their project that pointed at the old id is rewritten to the new one. The decision lists those rewrites. Only ids your projects allocated can collide: new quests, new NPCs, objects and items, spawn groups and placed spawns. A change to something that already exists in the database, such as a moved spawn, can only conflict.
 
+Renumbering one item can bring up another collision: when both of you placed the same spawn of a new NPC and the NPCs collide, their spawn now belongs to their renumbered NPC, so it differs from yours. That collision is listed too, and **Keep both** renumbers it as well.
+
+Ids made inside an NPC or object are checked as well. A spawn of theirs that the result keeps, at a spawn guid your project uses for something else, moves to a free guid, and the warnings say so. Trainer ids, gossip menu and text ids, page ids and path ids are not renumbered: when two things in the result use one of them, the warnings name the id and both of its users, so you can change one before you export.
+
 When one side deleted a spawn and the other changed it (moved it, or changed its movement, respawn time or game events), the deletion and the changes become one conflict under **Spawns**, decided together, so you never keep a change to a spawn the result has deleted.
 
 ## Reading the preview
@@ -53,18 +57,19 @@ The preview updates after every choice.
 - **Will be dropped:** every change the result does not keep, and which file it came from, such as your edit of a quest when you kept theirs, or *the removal of* an item when the other side's edit wins. This is what the count on the **Merge** button counts.
 - **Not carried over:** project settings and history the result does not take from theirs or the base (see below).
 - **Needs a decision:** the conflicts and collisions above.
-- **Warnings:** anything worth checking before you merge: no base chosen, a base that may be the wrong file, something in the result that points at an item the merge left out (for example a quest whose giver was an NPC you chose not to keep), or a settled collision that leaves the other side's references on a different item.
+- **Warnings:** anything worth checking before you merge: no base chosen, a base that may be the wrong file, something in the result that points at an item the merge left out (for example a quest whose giver was an NPC you chose not to keep), a settled collision that leaves the other side's references on a different item, a spawn of theirs moved to a free guid, or an id two things in the result use.
 
 ## What is not carried over
 
 - **Project settings:** the result keeps your project's name, id range and output folder. Theirs, if different, are listed and not used; so is the base file's name.
 - **Ids outside your range:** if renumbering or their items put ids outside your id range, the preview counts them.
+- **Canvas view:** where the canvas is panned and how far it is zoomed come from your project, not from theirs or the base.
 - **Undo history:** the result starts with an empty history. Every file's own history stays with that file.
 - **Layout and export details:** canvas positions, last export paths, import snapshots and fidelity reports come from the side whose quest is kept.
 
 ## With an AI assistant (MCP)
 
-An assistant connected over [MCP](/azeroth-world-editor/guides/ai-mcp/) can merge too, with two tools. Like the dialog, the open project is mine and neither tool changes any input file.
+An assistant connected over [MCP](/azeroth-world-editor/guides/ai-mcp/) can merge too, with two tools. Like the dialog, the open project is mine, with any edit the window has not sent yet, and neither tool changes any input file.
 
 | Tool | What it does |
 | --- | --- |

@@ -7,6 +7,7 @@ export interface MetaLine {
 }
 
 const FIXED = [
+  'The canvas view (where it is panned and how far it is zoomed) is yours; the one saved in theirs or the base is not used.',
   'The undo history of every file starts over in the result.',
   'Canvas positions, last export paths, import snapshots and fidelity reports come from the side whose quest is kept.',
   'The result is a new unsaved project; none of the three files is changed.',
