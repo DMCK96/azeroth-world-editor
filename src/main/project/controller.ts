@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { ProjectActionResult, ProjectState, RecentProject, RecoveryEntry } from '../../shared/ipc';
 import type { Store } from '../store/store';
 import {
@@ -10,6 +11,7 @@ import {
   parseProject,
   serializeProject,
   writeFileAtomic,
+  type ProjectDocument,
   type ProjectFs,
 } from './project-file';
 import type { Recovery } from './recovery';
@@ -46,6 +48,17 @@ export interface ProjectController {
   discardRecovery(id: string): Promise<void>;
   /** The app is closing and the user settled any unsaved changes: nothing needs recovering. */
   discardOnQuit(): Promise<void>;
+  /** The open dialog on its own, for choosing a file to read rather than open; null when cancelled. */
+  pickFile(): Promise<string | null>;
+  /**
+   * Reads a project file without opening it, migrated like an ordinary open; `digest` is the
+   * sha-256 hex of the file's text. Throws `ProjectFileError`; the open project is never touched.
+   */
+  read(path: string): Promise<{ doc: ProjectDocument; digest: string }>;
+  /** Asks about unsaved changes, then opens the document as a new project that has never been saved. */
+  openDocument(doc: ProjectDocument): Promise<ProjectActionResult>;
+  /** Writes the document to a new file; throws when the path already exists, so nothing is overwritten. */
+  writeCopy(path: string, doc: ProjectDocument): Promise<void>;
 }
 
 // Characters Windows refuses in a file name, plus control characters.
@@ -109,17 +122,19 @@ export function createProjectController(deps: {
     return run;
   };
 
+  async function readText(path: string): Promise<string> {
+    try {
+      return await fs.readFile(path);
+    } catch (error) {
+      throw new ProjectFileError('unreadable', `Could not read ${path}: ${messageOf(error)}`);
+    }
+  }
+
   async function open(given?: string): Promise<ProjectActionResult> {
     if (!(await settleUnsaved())) return { done: false };
     const path = given ?? (await dialogs.showOpen());
     if (path === null) return { done: false };
-    let text: string;
-    try {
-      text = await fs.readFile(path);
-    } catch (error) {
-      throw new ProjectFileError('unreadable', `Could not read ${path}: ${messageOf(error)}`);
-    }
-    const doc = parseProject(text);
+    const doc = parseProject(await readText(path));
     await replaceWith(() => session.load(doc, path, { dirty: false }));
     recent.touch(path, doc.name, deps.now());
     return doc.migrationWarnings && doc.migrationWarnings.length > 0 ? { done: true, warnings: doc.migrationWarnings } : { done: true };
@@ -167,5 +182,25 @@ export function createProjectController(deps: {
     // left for a late timer or window blur to write back as a recovery copy.
     discardOnQuit: () =>
       serial(() => replaceWith(() => session.reset(defaultProjectMeta(DEFAULT_PROJECT_NAME, deps.defaultOutputDir)))),
+    pickFile: () => dialogs.showOpen(),
+    async read(path) {
+      const text = await readText(path);
+      return { doc: parseProject(text), digest: createHash('sha256').update(text).digest('hex') };
+    },
+    openDocument: (doc) =>
+      serial(async () => {
+        if (!(await settleUnsaved())) return { done: false };
+        await replaceWith(() => session.load(doc, null, { dirty: true }));
+        return { done: true };
+      }),
+    writeCopy: (path, doc) =>
+      serial(async () => {
+        if (await fs.exists(path)) throw new SaveFailedError(`${path} already exists`);
+        try {
+          await writeFileAtomic(fs, path, serializeProject(doc));
+        } catch (error) {
+          throw new SaveFailedError(`Could not write the project to ${path}: ${messageOf(error)}`);
+        }
+      }),
   };
 }

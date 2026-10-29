@@ -134,6 +134,14 @@ const aggregateSchema = z
   })
   .strict();
 
+/** A project file the merge reads or writes */
+const mergePathArg = z.string().min(1).max(MAX_PATH);
+const mergeFilesArg = z.object({ theirsPath: mergePathArg, basePath: mergePathArg.nullable() });
+/** A choice per decision id; the engine ignores one for no decision */
+const mergeChoicesArg = z.record(z.string().max(MAX_PATH), z.enum(['mine', 'theirs', 'both']));
+/** The sha-256 hex a preview returned */
+const mergeFingerprintArg = z.string().length(64);
+
 /**
  * One tuple schema per method, in `Api` declaration order.
  *
@@ -297,6 +305,10 @@ const REQUEST_SCHEMAS: Record<keyof Api, z.ZodType<unknown[]>> = {
       z.object({ camera: z.object({ map: z.number().int(), x: finite, y: finite, z: finite, area: debugText.nullable() }).nullable() }),
     ]),
   ]),
+  mergePickFile: z.tuple([]),
+  mergePreview: z.tuple([mergeFilesArg, mergeChoicesArg]),
+  mergeApply: z.tuple([mergeFilesArg, mergeChoicesArg, mergeFingerprintArg]),
+  mergeWrite: z.tuple([mergeFilesArg, mergeChoicesArg, mergeFingerprintArg, mergePathArg]),
 };
 
 /**

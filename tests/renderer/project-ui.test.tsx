@@ -77,6 +77,14 @@ describe('project UI', () => {
     await waitFor(() => expect(api.openProject).toHaveBeenCalledWith());
   });
 
+  it('offers Merge project…, which opens the merge dialog in place of the project one', async () => {
+    await home();
+    const dialog = await openModal();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Merge project…' }));
+    expect(screen.queryByRole('dialog', { name: 'Project' })).toBeNull();
+    expect(await screen.findByRole('dialog', { name: 'Merge projects' })).toBeInTheDocument();
+  });
+
   it('lists recent projects; a missing one can only be removed', async () => {
     const { api } = await home({ recentProjects: async () => okv([
       { path: 'C:\\w\\a.aqc', name: 'A', openedAt: '2026-09-23T10:00:00.000Z', exists: true },

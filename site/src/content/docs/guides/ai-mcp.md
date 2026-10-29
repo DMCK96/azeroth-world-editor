@@ -36,6 +36,7 @@ Connect the editor to your world database first, as you do for any work. The ass
 - **Make NPCs, objects and items,** or take over an existing one and change it.
 - **Place and move spawns,** set patrol routes, movement and respawn times in the World.
 - **Export:** write a quest's or the project's SQL patch into your export folder.
+- **Merge projects:** preview merging another project file into the open one, and write the result to a new file. See [Merging projects](/azeroth-world-editor/guides/merge-projects/#with-an-ai-assistant-mcp).
 - **Undo and redo.**
 
 ## Knowing your world

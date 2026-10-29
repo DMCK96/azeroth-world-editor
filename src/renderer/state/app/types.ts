@@ -8,6 +8,7 @@ import type { FocusSlice } from './focus';
 import type { LinksEditSlice } from './links-edit';
 import type { HistorySlice } from './history';
 import type { IdsSlice } from './ids';
+import type { MergeSlice } from './merge';
 import type { ProjectSlice } from './project';
 import type { QuestSlice } from './quest';
 import type { RotationsSlice } from './rotations';
@@ -25,6 +26,7 @@ export interface AppState
     ExportSlice,
     ProjectSlice,
     IdsSlice,
+    MergeSlice,
     HistorySlice,
     FocusSlice,
     LinksEditSlice {}

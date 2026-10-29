@@ -15,6 +15,7 @@ import type { AuthoringApi } from './authoring';
 import type { DebugApi } from './debug';
 import type { UpdatesApi } from './updates';
 import type { IdsApi } from './ids';
+import type { MergeApi } from './merge';
 
 /** Everything the renderer can ask the main process to do: every area's calls */
 export interface Api
@@ -34,4 +35,5 @@ export interface Api
     AuthoringApi,
     DebugApi,
     UpdatesApi,
-    IdsApi {}
+    IdsApi,
+    MergeApi {}

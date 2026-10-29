@@ -19,6 +19,7 @@ describe('parseRequest', () => {
       'debugStatus', 'debugSetEnabled', 'debugEvents', 'debugSnapshot', 'debugType', 'captureScreenshot', 'debugRecord', 'debugAnswer',
       'updateCheck', 'updateSkip', 'updateRemind', 'updateOpen',
       'idConflicts', 'resolveIdConflicts',
+      'mergePickFile', 'mergePreview', 'mergeApply', 'mergeWrite',
     ].sort());
   });
   it('refuses world edits with a bad kind, a missing rotation or a point without its columns', () => {

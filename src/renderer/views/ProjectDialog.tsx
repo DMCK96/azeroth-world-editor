@@ -109,6 +109,17 @@ export function ProjectDialog({ store, onClose }: { store: AppStore; onClose: ()
           <button type="button" className="btn" onClick={() => void closeAfter(() => openProject(), switched(epoch))}>
             Open…
           </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              // The merge has a dialog of its own, which takes this one's place
+              onClose();
+              store.getState().openMerge();
+            }}
+          >
+            Merge project…
+          </button>
           <button type="button" className="btn btn--primary" onClick={() => void saveProject()}>
             Save
           </button>
