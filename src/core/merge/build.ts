@@ -188,6 +188,47 @@ function droppedOf(r: Resolved, kinds: readonly AnyKind[], inputs: MergeInputs):
   return dropped;
 }
 
+/**
+ * Items the losing side of a collision settled as mine or theirs keeps in the result that still name
+ * the colliding key, which in the result is the winner's different item.
+ */
+function staleReferences(r: Resolved, kinds: readonly AnyKind[], inputs: MergeInputs): string[] {
+  const byKey = (a: string, b: string): number => a.localeCompare(b, undefined, { numeric: true });
+  const lost = { mine: new Set<string>(), theirs: new Set<string>() };
+  for (const decision of r.plan2.decisions) {
+    const pick = r.picks.get(decision.id);
+    if (decision.type !== 'collision' || (pick !== 'mine' && pick !== 'theirs')) continue;
+    lost[pick === 'mine' ? 'theirs' : 'mine'].add(decision.id);
+  }
+  if (lost.mine.size === 0 && lost.theirs.size === 0) return [];
+
+  const warnings: string[] = [];
+  for (const kind of kinds) {
+    if (!kind.references) continue;
+    const docs = { mine: kind.items(inputs.mine), theirs: kind.items(r.theirs2) };
+    const rows: { key: string; line: string }[] = [];
+    for (const entry of r.plan2.entries) {
+      if (entry.kind !== kind.key) continue;
+      // An item both sides hold alike is not the losing side's alone
+      if (entry.decisionId === null && (entry.outcome === 'unchanged' || entry.outcome === 'take-either')) continue;
+      const side = sideFor(entry, r.picks);
+      const ids = lost[side];
+      if (ids.size === 0) continue;
+      const item = docs[side].get(entry.key);
+      if (item === undefined) continue;
+      const named = new Set(kind.references(item).map((ref) => `${ref.kind}|${ref.key}`));
+      for (const id of named) {
+        if (!ids.has(id)) continue;
+        const [refKind, refKey] = splitId(id);
+        rows.push({ key: entry.key, line: `${kind.describe(item)} comes from ${side} and points at ${refKind} ${refKey}, which in the result is a different item` });
+      }
+    }
+    rows.sort((a, b) => byKey(a.key, b.key));
+    warnings.push(...rows.map((row) => row.line));
+  }
+  return warnings;
+}
+
 /** What merging with these choices would give, what it drops and what it warns about. Never throws on an unsettled conflict: it counts as mine. */
 export function previewMerge(inputs: MergeInputs, choices: Choices, kinds: readonly AnyKind[] = MERGE_KINDS): MergePreview {
   const r = resolve(inputs, choices, kinds);
@@ -201,6 +242,6 @@ export function previewMerge(inputs: MergeInputs, choices: Choices, kinds: reado
     decisions: [...r.plan.decisions, ...r.plan2.decisions.filter((d) => !known.has(d.id))],
     entries: r.plan.entries,
     settled: r.unsettled.length === 0,
-    warnings: [...r.plan.warnings, ...checkReferences(result, sources, kinds)],
+    warnings: [...r.plan.warnings, ...staleReferences(r, kinds, inputs), ...checkReferences(result, sources, kinds)],
   };
 }

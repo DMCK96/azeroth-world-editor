@@ -140,4 +140,33 @@ describe('previewMerge', () => {
     const p = previewMerge({ base: withQuests(quest(7, 'a')), mine: emptyDoc(), theirs }, { 'quest|7': 'mine' });
     expect(p.warnings.join(' ')).toMatch(/Group 1 g points at quest 7/);
   });
+  describe('a collision settled one way', () => {
+    const group = (questId: number) => ({ id: 1, name: 'g', map: 0, maxActive: 1, members: [{ type: 'quest', questId }], event: null, origin: { kind: 'new' } }) as never;
+    const withGroup = (q: ReturnType<typeof quest>[], g: never) => docOf({ quests: q, world: { spawns: [], routes: [], added: [], groups: [g] } });
+    const line = (from: string) => `Group 1 g comes from ${from} and points at quest 60001, which in the result is a different item`;
+
+    it("warns that theirs' reference now points at mine's different item", () => {
+      const inputs = { base: emptyDoc(), mine: withQuests(quest(60001, 'mine')), theirs: withGroup([quest(60001, 'theirs')], group(60001)) };
+      expect(previewMerge(inputs, { 'quest|60001': 'mine' }).warnings).toContain(line('theirs'));
+    });
+
+    it('does not warn for keep both, which rewrites the reference', () => {
+      const inputs = { base: emptyDoc(), mine: withQuests(quest(60001, 'mine')), theirs: withGroup([quest(60001, 'theirs')], group(60001)) };
+      const p = previewMerge(inputs, { 'quest|60001': 'both' });
+      expect(p.warnings.join(' ')).not.toMatch(/different item/);
+    });
+
+    it("warns that mine's reference now points at theirs' different item", () => {
+      const inputs = { base: emptyDoc(), mine: withGroup([quest(60001, 'mine')], group(60001)), theirs: withQuests(quest(60001, 'theirs')) };
+      const before = JSON.stringify(inputs);
+      expect(previewMerge(inputs, { 'quest|60001': 'theirs' }).warnings).toContain(line('mine'));
+      expect(JSON.stringify(inputs)).toBe(before);
+    });
+
+    it('does not warn for a losing-side item that names something else', () => {
+      const inputs = { base: emptyDoc(), mine: withQuests(quest(60001, 'mine')), theirs: withGroup([quest(60001, 'theirs'), quest(60005, 'x')], group(60005)) };
+      const p = previewMerge(inputs, { 'quest|60001': 'mine' });
+      expect(p.warnings.join(' ')).not.toMatch(/different item/);
+    });
+  });
 });
