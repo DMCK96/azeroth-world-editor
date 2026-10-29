@@ -38,7 +38,8 @@ Everything in the app, the quests and your changes to the world, is one **projec
 
 - **Save** or **Save As…** the project as an `.awe` file (projects saved as `.aqc` by older versions open too),
 - **Open…** another project, or pick one from **Recent projects**,
-- start a **New project…**.
+- start a **New project…**,
+- **Merge project…** another project file into this one (see [Merging projects](/azeroth-world-editor/guides/merge-projects/)).
 
 The project's name shows in the top bar, with a dot beside it while there are unsaved changes. Closing the app with unsaved changes asks whether to save.
 

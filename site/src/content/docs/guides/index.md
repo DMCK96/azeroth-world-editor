@@ -10,6 +10,7 @@ One guide per part of the app: what it is for and how to use it.
 
 - [The World in 3D](/azeroth-world-editor/guides/the-world/): walk the world, place and move NPCs and objects, draw their paths, and tie them to your quest.
 - [Projects and the Quests dock](/azeroth-world-editor/guides/projects-and-canvas/): lay out quest chains beside the World, bring in existing quests and save your work.
+- [Merging projects](/azeroth-world-editor/guides/merge-projects/): bring another project file's work into yours, with a preview of what the result keeps and drops.
 - [Quest details, objectives and rewards](/azeroth-world-editor/guides/quest-details-and-objectives/): the quest editor and its modules.
 - [Quest givers and enders](/azeroth-world-editor/guides/givers-and-enders/): who offers the quest and who takes it back.
 - [Quest scripting](/azeroth-world-editor/guides/quest-scripting/): what NPCs, objects and areas do around a quest.
